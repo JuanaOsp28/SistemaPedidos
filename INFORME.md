@@ -211,7 +211,7 @@ kafka | [GroupCoordinator 1]: Stabilized group inventory-service-group generatio
 | **Datos de entrada** | `{"customerName":"Luis","product":"Monitor","quantity":1}` |
 | **Pasos** | 1) POST. 2) Consultar la cola a los 0,7 s (durante el procesamiento). 3) Esperar el log de `ack`. 4) Consultar la cola |
 | **Resultado esperado** | Durante el procesamiento Unacked=1; después del `ack`, Total=0; logs de recepción, procesamiento y confirmación |
-| **Resultado obtenido** | Durante: **`Ready=0 Unacked=1`**. Después: **`Total=0`**. Log: `Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-7E5836D0` (procesamiento simulado de 2622 ms) |
+| **Resultado obtenido** | Durante: **`Ready=0 Unacked=1`**. Después: **`Total=0`**. Log: `Notificacion enviada; mensaje confirmado (ack) \| orderId=ORD-7E5836D0` (procesamiento simulado de 2622 ms) |
 | **Evidencia** | `evidencias/rabbitmq/CP-03.log` |
 | **Estado** | ✅ **Cumple** |
 | **Análisis técnico** | El estado `Unacked` demuestra el ack manual: el broker entregó el mensaje, pero no lo elimina hasta que el worker termina. Esa es la base de la recuperación del CP-12. |
@@ -226,7 +226,7 @@ kafka | [GroupCoordinator 1]: Stabilized group inventory-service-group generatio
 | **Datos de entrada** | Header `X-Correlation-Id: QA-RMQ-CP06-140819`; cuerpo `{"customerName":"Marta","product":"Silla ergonomica","quantity":1}` |
 | **Pasos** | 1) POST con el header. 2) Filtrar los logs de la API. 3) Leer el mensaje en la cola. 4) Iniciar el worker y filtrar sus logs |
 | **Resultado esperado** | El mismo `orderId` y `correlationId` aparecen en los tres puntos |
-| **Resultado obtenido** | **API:** `Pedido recibido` y `Mensaje ProcessOrder publicado | orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819 tiempoMs=4.4`. **Broker:** `correlation_id=QA-RMQ-CP06-140819`, `payload.orderId=ORD-41AFB316`. **Worker:** `Mensaje recibido` y `confirmado (ack) | orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819` |
+| **Resultado obtenido** | **API:** `Pedido recibido` y `Mensaje ProcessOrder publicado \| orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819 tiempoMs=4.4`. **Broker:** `correlation_id=QA-RMQ-CP06-140819`, `payload.orderId=ORD-41AFB316`. **Worker:** `Mensaje recibido` y `confirmado (ack) \| orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819` |
 | **Evidencia** | `evidencias/rabbitmq/CP-06.log` |
 | **Estado** | ✅ **Cumple** |
 | **Análisis técnico** | El `correlationId` lo fija el cliente y se propaga sin cambios. Observación: el worker reportó `redelivered=true` porque la lectura del paso 3 (*Get messages* con reencolado) cuenta como una entrega. Es un efecto de la observación, no un fallo. |
@@ -322,7 +322,7 @@ kafka | [GroupCoordinator 1]: Stabilized group inventory-service-group generatio
 | **Datos de entrada** | A) 3 pedidos `Recuperacion*`. B) 3 pedidos `Broker*` |
 | **Pasos** | **A)** 1) Enviar 3 POST. 2) Cuando el worker está procesando el primero, `docker compose kill notification-worker`. 3) Consultar la cola. 4) Iniciar el worker. **B)** 1) Detener el worker. 2) Enviar 3 POST. 3) `docker compose restart rabbitmq`. 4) Consultar la cola. 5) Iniciar el worker |
 | **Resultado esperado** | A) El mensaje sin ack vuelve a la cola y se reentrega. B) Los mensajes sobreviven al reinicio del broker. En ambos casos no se pierde nada |
-| **Resultado obtenido** | **A)** Durante el procesamiento `Ready=2 Unacked=1`. El primer pedido (ORD-35928AFD) ya estaba confirmado y el SIGKILL llegó mientras el worker procesaba el segundo; tras la caída, **`Ready=2 Unacked=0`** (el mensaje en curso volvió a la cola). Al reiniciar el worker: `Mensaje recibido | orderId=ORD-F0533005 ... redelivered=true`; se confirmaron los 3, sin pérdidas. **B)** `Ready=3` antes del reinicio y **`Ready=3` después**. La API registró `Conexion con RabbitMQ cerrada` → 3 reintentos (`ECONNREFUSED`) → `Conectado a RabbitMQ` (12 s, sin reiniciar la API). Se procesaron los 3, sin pérdidas |
+| **Resultado obtenido** | **A)** Durante el procesamiento `Ready=2 Unacked=1`. El primer pedido (ORD-35928AFD) ya estaba confirmado y el SIGKILL llegó mientras el worker procesaba el segundo; tras la caída, **`Ready=2 Unacked=0`** (el mensaje en curso volvió a la cola). Al reiniciar el worker: `Mensaje recibido \| orderId=ORD-F0533005 ... redelivered=true`; se confirmaron los 3, sin pérdidas. **B)** `Ready=3` antes del reinicio y **`Ready=3` después**. La API registró `Conexion con RabbitMQ cerrada` → 3 reintentos (`ECONNREFUSED`) → `Conectado a RabbitMQ` (12 s, sin reiniciar la API). Se procesaron los 3, sin pérdidas |
 | **Evidencia** | `evidencias/rabbitmq/CP-12.log` · Figura CP-12-R |
 | **Estado** | ✅ **Cumple** |
 | **Análisis técnico** | Con ack manual, la garantía es "al menos una vez" a nivel de mensaje: solo se reentrega el mensaje que estaba en curso, y el broker lo marca con `redelivered=true`, lo que permite que el consumidor detecte un posible duplicado. La durabilidad combina tres elementos: cola durable, `persistent: true` y volumen en `/var/lib/rabbitmq`. Si falta cualquiera de los tres, el caso B falla. |
@@ -360,7 +360,7 @@ kafka | [GroupCoordinator 1]: Stabilized group inventory-service-group generatio
 | **Datos de entrada** | `{"customerName":"Ana","product":"Teclado mecanico","quantity":2,"unitPrice":120000}` |
 | **Pasos** | 1) `kafka-get-offsets.sh` antes. 2) POST. 3) `kafka-get-offsets.sh` después. 4) Leer el evento del log con `kafka-console-consumer.sh`. 5) Validar los campos |
 | **Resultado esperado** | El log crece en 1; el evento tiene `eventType=OrderCreated`, los campos obligatorios y `total = quantity × unitPrice` |
-| **Resultado obtenido** | Eventos en el tópico: **1 → 2**. API: `Evento OrderCreated publicado | orderId=ORD-574AD8C6 eventId=c1722dfc-… particion/offset`. En el broker: `Partition:0 Offset:1`, headers `eventType:OrderCreated, eventId, correlationId`, key `ORD-574AD8C6`. Campos `eventId`, `eventType`, `eventVersion=1.0`, `occurredAt`, `source=orders-api`, `correlationId` y `data` presentes; **`total=240000`** |
+| **Resultado obtenido** | Eventos en el tópico: **1 → 2**. API: `Evento OrderCreated publicado \| orderId=ORD-574AD8C6 eventId=c1722dfc-… particion/offset`. En el broker: `Partition:0 Offset:1`, headers `eventType:OrderCreated, eventId, correlationId`, key `ORD-574AD8C6`. Campos `eventId`, `eventType`, `eventVersion=1.0`, `occurredAt`, `source=orders-api`, `correlationId` y `data` presentes; **`total=240000`** |
 | **Evidencia** | `evidencias/kafka/CP-04.log` · Figuras CP-04a y CP-04b |
 | **Estado** | ✅ **Cumple** |
 | **Análisis técnico** | El evento está nombrado como un hecho en pasado y lleva metadatos de trazabilidad e idempotencia (`eventId`). La key `orderId` garantiza que todos los eventos de un mismo pedido caigan en la misma partición y conserven el orden. |
@@ -396,7 +396,7 @@ kafka | [GroupCoordinator 1]: Stabilized group inventory-service-group generatio
 | **Datos de entrada** | Header `X-Correlation-Id: QA-KAFKA-CP06-142247`; cuerpo `{"customerName":"Marta","product":"Silla ergonomica","quantity":1,"unitPrice":700000}` |
 | **Pasos** | 1) POST con el header. 2) Logs de la API. 3) Leer el evento en el broker. 4) Logs de los 3 consumidores |
 | **Resultado esperado** | El mismo `orderId`, `eventId` y `correlationId` en todos los puntos, con la misma partición y el mismo offset |
-| **Resultado obtenido** | **API:** `publicado | orderId=ORD-80672E7B eventId=c32700b2-… correlationId=QA-KAFKA-CP06-142247 particion=2 offset=1`. **Broker:** `Partition:2 Offset:1 eventType:OrderCreated,eventId:c32700b2-…,correlationId:QA-KAFKA-CP06-142247 ORD-80672E7B {...}`. **Consumidores (3/3):** `Evento recibido | eventId=c32700b2-… orderId=ORD-80672E7B correlationId=QA-KAFKA-CP06-142247 partition=2 offset=1` |
+| **Resultado obtenido** | **API:** `publicado \| orderId=ORD-80672E7B eventId=c32700b2-… correlationId=QA-KAFKA-CP06-142247 particion=2 offset=1`. **Broker:** `Partition:2 Offset:1 eventType:OrderCreated,eventId:c32700b2-…,correlationId:QA-KAFKA-CP06-142247 ORD-80672E7B {...}`. **Consumidores (3/3):** `Evento recibido \| eventId=c32700b2-… orderId=ORD-80672E7B correlationId=QA-KAFKA-CP06-142247 partition=2 offset=1` |
 | **Evidencia** | `evidencias/kafka/CP-06.log` |
 | **Estado** | ✅ **Cumple** |
 | **Análisis técnico** | En Kafka la pareja (partición, offset) identifica el evento de forma única en el broker y cruza con exactitud los registros de productor y consumidores. Leer el log no altera nada (a diferencia del *Get messages* de RabbitMQ). |
