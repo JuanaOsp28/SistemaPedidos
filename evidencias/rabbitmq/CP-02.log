@@ -1,0 +1,59 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101140700
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-02 (RabbitMQ) - Envio de mensaje a RabbitMQ
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:07:00 -05:00
+
+>> Se detiene el worker para que el mensaje quede visible en la cola
+PS> docker compose stop notification-worker
+ Container rabbitmq-notification-worker-1 Stopping
+ Container rabbitmq-notification-worker-1 Stopped
+[cola pedidos | antes del POST] Ready=0 Unacked=0 Total=0 Consumidores=0
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Ana","product":"Teclado","quantity":2}'
+    HTTP 202 en 9.4 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-BD25BC79","correlationId":"283848f9-0bcf-415c-9396-7abcc13be1dd"}
+[cola pedidos | despues del POST] Ready=1 Unacked=0 Total=1 Consumidores=0
+
+>> Mensaje visible en la cola (lectura sin consumir)
+PS> curl.exe -u admin:admin -X POST http://localhost:15672/api/queues/%2F/pedidos/get -d '{count:10, ackmode:ack_requeue_true}'
+    routing_key=pedidos redelivered=False delivery_mode=2 (2=persistente) correlation_id=283848f9-0bcf-415c-9396-7abcc13be1dd message_id=ae14a0d2-d097-41b1-a62c-6e1e56542c4d type=ProcessOrder
+    payload={"type":"ProcessOrder","orderId":"ORD-BD25BC79","correlationId":"283848f9-0bcf-415c-9396-7abcc13be1dd","customerName":"Ana","product":"Teclado","quantity":2,"createdAt":"2026-11-01T19:07:07.752Z"}
+
+[CAPTURA] RabbitMQ > Queues > pedidos: Ready=1 y, en 'Get messages' (Ack mode: Nack message requeue true), el payload con ORD-BD25BC79
+
+>> Log de publicacion en orders-api
+PS> docker compose logs --since 2026-11-01T19:07:06Z orders-api | Select-String 'ORD-BD25BC79'
+orders-api  | 2026-11-01T19:07:07.752Z [orders-api] Pedido recibido | orderId=ORD-BD25BC79 correlationId=283848f9-0bcf-415c-9396-7abcc13be1dd cliente=Ana
+orders-api  | 2026-11-01T19:07:07.756Z [orders-api] Mensaje ProcessOrder publicado en RabbitMQ | orderId=ORD-BD25BC79 correlationId=283848f9-0bcf-415c-9396-7abcc13be1dd cola=pedidos tiempoMs=3.8
+
+>> Se reinicia el worker (procesa el mensaje pendiente)
+PS> docker compose start notification-worker
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-1 Starting
+ Container rabbitmq-notification-worker-1 Started
+[cola pedidos | tras reiniciar el worker] Ready=0 Unacked=0 Total=0 Consumidores=1
+
+ESTADO CP-02 : CUMPLE
+Detalle: Ready paso de 0 a 1; mensaje con orderId=ORD-BD25BC79 visible en la cola pedidos, persistente (delivery_mode=2).
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101140805
+**********************

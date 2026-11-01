@@ -1,0 +1,62 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142229
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-06 (Kafka) - Trazabilidad del flujo (orderId / correlationId)
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:22:29 -05:00
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Marta","product":"Silla ergonomica","quantity":1,"unitPrice":700000}' -H 'X-Correlation-Id: QA-KAFKA-CP06-142247'
+    HTTP 202 en 50.7 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-80672E7B","eventId":"c32700b2-c59b-4782-adfb-8625116ef106","correlationId":"QA-KAFKA-CP06-142247"}
+
+>> 1) API: logs de orders-api
+PS> docker compose logs --since 2026-11-01T19:22:46Z orders-api | Select-String 'QA-KAFKA-CP06-142247'
+orders-api-kafka  | 2026-11-01T19:22:47.612Z [orders-api] Pedido recibido | orderId=ORD-80672E7B correlationId=QA-KAFKA-CP06-142247 cliente=Marta
+orders-api-kafka  | 2026-11-01T19:22:47.639Z [orders-api] Evento OrderCreated publicado en Kafka | orderId=ORD-80672E7B eventId=c32700b2-c59b-4782-adfb-8625116ef106 correlationId=QA-KAFKA-CP06-142247 topico=orders.events particion=2 offset=1 tiempoMs=27.9
+
+>> 2) Broker: evento en el log del topico (headers, key, particion, offset)
+PS> docker exec kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic orders.events --from-beginning --property print.key=true --property print.partition=true --property print.offset=true --property print.headers=true | Select-String 'QA-KAFKA-CP06-142247'
+Partition:2	Offset:1	eventType:OrderCreated,eventId:c32700b2-c59b-4782-adfb-8625116ef106,correlationId:QA-KAFKA-CP06-142247	ORD-80672E7B	{"eventId":"c32700b2-c59b-4782-adfb-8625116ef106","eventType":"OrderCreated","eventVersion":"1.0","occurredAt":"2026-11-01T19:22:47.611Z","source":"orders-api","correlationId":"QA-KAFKA-CP06-142247","data":{"orderId":"ORD-80672E7B","customerName":"Marta","product":"Silla ergonomica","quantity":1,"unitPrice":700000,"total":700000}}
+
+>> 3) Consumidor: inventory-consumer
+PS> docker compose logs --since 2026-11-01T19:22:46Z inventory-consumer | Select-String 'ORD-80672E7B'
+inventory-consumer-1  | 2026-11-01T19:22:47.651Z [inventory-consumer 9875165af12e] Evento recibido | eventType=OrderCreated eventId=c32700b2-c59b-4782-adfb-8625116ef106 orderId=ORD-80672E7B correlationId=QA-KAFKA-CP06-142247 topic=orders.events partition=2 offset=1
+inventory-consumer-1  | 2026-11-01T19:22:47.653Z [inventory-consumer 9875165af12e] Simulando reserva de inventario... | orderId=ORD-80672E7B producto=Silla ergonomica cantidad=1
+inventory-consumer-1  | 2026-11-01T19:22:49.153Z [inventory-consumer 9875165af12e] Inventario reservado | orderId=ORD-80672E7B producto=Silla ergonomica unidadesReservadas=1
+inventory-consumer-1  | 2026-11-01T19:22:49.153Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-80672E7B partition=2 offset=1 procesadosPorEstaInstancia=4
+
+>> 3) Consumidor: billing-consumer
+PS> docker compose logs --since 2026-11-01T19:22:46Z billing-consumer | Select-String 'ORD-80672E7B'
+billing-consumer-1  | 2026-11-01T19:22:47.650Z [billing-consumer f47e4ab68e13] Evento recibido | eventType=OrderCreated eventId=c32700b2-c59b-4782-adfb-8625116ef106 orderId=ORD-80672E7B correlationId=QA-KAFKA-CP06-142247 topic=orders.events partition=2 offset=1
+billing-consumer-1  | 2026-11-01T19:22:47.652Z [billing-consumer f47e4ab68e13] Simulando generacion de factura... | orderId=ORD-80672E7B cliente=Marta
+billing-consumer-1  | 2026-11-01T19:22:48.654Z [billing-consumer f47e4ab68e13] Factura generada | orderId=ORD-80672E7B factura=FAC-80672E7B total=700000
+billing-consumer-1  | 2026-11-01T19:22:48.654Z [billing-consumer f47e4ab68e13] Evento procesado | orderId=ORD-80672E7B partition=2 offset=1 procesadosPorEstaInstancia=4
+
+>> 3) Consumidor: notification-consumer
+PS> docker compose logs --since 2026-11-01T19:22:46Z notification-consumer | Select-String 'ORD-80672E7B'
+notification-consumer-1  | 2026-11-01T19:22:47.649Z [notification-consumer a761670a611f] Evento recibido | eventType=OrderCreated eventId=c32700b2-c59b-4782-adfb-8625116ef106 orderId=ORD-80672E7B correlationId=QA-KAFKA-CP06-142247 topic=orders.events partition=2 offset=1
+notification-consumer-1  | 2026-11-01T19:22:47.652Z [notification-consumer a761670a611f] Simulando envio de notificacion... | orderId=ORD-80672E7B cliente=Marta
+notification-consumer-1  | 2026-11-01T19:22:48.452Z [notification-consumer a761670a611f] Notificacion enviada al cliente | orderId=ORD-80672E7B cliente=Marta producto=Silla ergonomica
+notification-consumer-1  | 2026-11-01T19:22:48.452Z [notification-consumer a761670a611f] Evento procesado | orderId=ORD-80672E7B partition=2 offset=1 procesadosPorEstaInstancia=4
+
+ESTADO CP-06 : CUMPLE
+Detalle: orderId=ORD-80672E7B correlationId=QA-KAFKA-CP06-142247 seguido en orders-api, en el log de Kafka (header y payload) y en los 3 consumidores (3/3).
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142307
+**********************

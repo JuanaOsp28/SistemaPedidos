@@ -1,0 +1,195 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101140601
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+ENTORNO - Montaje y evidencias del entorno RabbitMQ
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:06:02 -05:00
+
+>> Construccion y arranque de los contenedores
+PS> docker compose up -d --build
+ Image rabbitmq-orders-api Building
+ Image rabbitmq-notification-worker Building
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.26kB 0.1s done
+#1 DONE 0.1s
+
+#2 [orders-api internal] load build definition from Dockerfile
+#2 transferring dockerfile: 195B 0.0s done
+#2 DONE 0.0s
+
+#3 [notification-worker internal] load build definition from Dockerfile
+#3 transferring dockerfile: 262B 0.0s done
+#3 DONE 0.0s
+
+#4 [orders-api internal] load metadata for docker.io/library/node:20-alpine
+#4 DONE 0.5s
+
+#5 [orders-api internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [notification-worker internal] load .dockerignore
+#6 transferring context: 2B done
+#6 DONE 0.0s
+
+#7 [orders-api internal] load build context
+#7 transferring context: 62B done
+#7 DONE 0.0s
+
+#8 [notification-worker internal] load build context
+#8 transferring context: 63B done
+#8 DONE 0.0s
+
+#9 [notification-worker 1/5] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+#9 resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 0.0s done
+#9 DONE 0.0s
+
+#10 [notification-worker 3/5] COPY package.json ./
+#10 CACHED
+
+#11 [notification-worker 4/5] RUN npm install --omit=dev --no-audit --no-fund
+#11 CACHED
+
+#12 [notification-worker 2/5] WORKDIR /app
+#12 CACHED
+
+#13 [orders-api 3/5] COPY package.json ./
+#13 CACHED
+
+#14 [orders-api 4/5] RUN npm install --omit=dev --no-audit --no-fund
+#14 CACHED
+
+#15 [notification-worker 5/5] COPY worker.js ./
+#15 CACHED
+
+#16 [orders-api 5/5] COPY index.js ./
+#16 CACHED
+
+#17 [notification-worker] exporting to image
+#17 exporting layers done
+#17 exporting manifest sha256:4b1b169ef36be3ad8414f68733e3da4ddb0b956b06c629c815f830784e75a856 done
+#17 exporting config sha256:121939a7f2eb699949c354500587a140707e3d4bb16f2d64af53f574c9f684a3 done
+#17 exporting attestation manifest sha256:a83cb93cbffbc8083e12a8064593a137258f2d90949eff6c81e9446af854ec5b 0.1s done
+#17 exporting manifest list sha256:b9d3c9f4630c121e691415939ea318afe98cc622434127e695ace8fd5e0ae64c
+#17 exporting manifest list sha256:b9d3c9f4630c121e691415939ea318afe98cc622434127e695ace8fd5e0ae64c 0.0s done
+#17 naming to docker.io/library/rabbitmq-notification-worker:latest 0.0s done
+#17 unpacking to docker.io/library/rabbitmq-notification-worker:latest 0.0s done
+#17 DONE 0.4s
+
+#18 [orders-api] exporting to image
+#18 exporting layers done
+#18 exporting manifest sha256:9c31923dad7bdb5e85c65e2320be102e302ebbce7678f5872010ad47cf5ccc0d done
+#18 exporting config sha256:e2be8d9307250f5d6b05189fa5dc537bbf22cef1b1d39782720a444536784595 done
+#18 exporting attestation manifest sha256:6e134bb217409f99221141a40366eafba1531dca0b021a284f7c56f87bbef6d9 0.1s done
+#18 exporting manifest list sha256:5aaf3606e2022e1e669def8f700beaeb18f2597e99a2d9f74c01c5da791c03a6 0.0s done
+#18 naming to docker.io/library/rabbitmq-orders-api:latest done
+#18 unpacking to docker.io/library/rabbitmq-orders-api:latest 0.0s done
+#18 DONE 0.4s
+
+#19 [orders-api] resolving provenance for metadata file
+#19 DONE 0.0s
+
+#20 [notification-worker] resolving provenance for metadata file
+#20 DONE 0.0s
+ Image rabbitmq-notification-worker Built
+ Image rabbitmq-orders-api Built
+ Container rabbitmq Running
+ Container rabbitmq-notification-worker-1 Recreate
+ Container orders-api Recreate
+ Container rabbitmq-notification-worker-1 Recreated
+ Container orders-api Recreated
+ Container rabbitmq Waiting
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container orders-api Starting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-1 Starting
+ Container orders-api Started
+ Container rabbitmq-notification-worker-1 Started
+PS>ErrorTerminación(Invoke-WebRequest): "Se ha terminado la conexión: La conexión ha terminado de forma inesperada."
+
+>> Contenedores en ejecucion
+PS> docker compose ps
+NAME                             IMAGE                          COMMAND                  SERVICE               CREATED          STATUS                    PORTS
+orders-api                       rabbitmq-orders-api            "docker-entrypoint.s…"   orders-api            5 seconds ago    Up 3 seconds              0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+rabbitmq                         rabbitmq:4-management          "docker-entrypoint.s…"   rabbitmq              53 seconds ago   Up 52 seconds (healthy)   0.0.0.0:5672->5672/tcp, [::]:5672->5672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+rabbitmq-notification-worker-1   rabbitmq-notification-worker   "docker-entrypoint.s…"   notification-worker   5 seconds ago    Up 3 seconds
+
+>> Puertos expuestos
+PS> docker ps --filter name=rabbitmq --filter name=orders-api --format table {{.Names}}\t{{.Status}}\t{{.Ports}}
+NAMES                            STATUS                    PORTS
+orders-api                       Up 3 seconds              0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+rabbitmq-notification-worker-1   Up 3 seconds
+rabbitmq                         Up 52 seconds (healthy)   0.0.0.0:5672->5672/tcp, [::]:5672->5672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+
+>> Consola de RabbitMQ Management accesible (http://localhost:15672)
+PS> curl.exe -s -o NUL -w HTTP %{http_code}\n http://localhost:15672/
+HTTP 200
+PS> curl.exe -s -u admin:admin http://localhost:15672/api/overview -o NUL -w API de administracion: HTTP %{http_code}\n
+API de administracion: HTTP 200
+
+>> Cola pedidos declarada (durable)
+PS> docker exec rabbitmq rabbitmqctl list_queues name durable messages_ready messages_unacknowledged messages consumers
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	durable	messages_ready	messages_unacknowledged	messages	consumers
+pedidos	true	0	0	0	1
+
+>> Conexiones AMQP abiertas en el broker
+PS> docker exec rabbitmq rabbitmqctl list_connections name user state
+Listing connections ...
+name	user	state
+172.20.0.3:43140 -> 172.20.0.2:5672	admin	running
+172.20.0.4:40772 -> 172.20.0.2:5672	admin	running
+
+>> Logs de arranque - rabbitmq (ultimas lineas)
+rabbitmq  | 2026-11-01 19:05:31.565185+00:00 [info] <0.1074.0> connection 172.20.0.3:33022 -> 172.20.0.2:5672 has a client-provided name: orders-api[0m
+rabbitmq  | 2026-11-01 19:05:31.565422+00:00 [info] <0.1074.0> User 'admin' authenticated successfully[0m
+rabbitmq  | 2026-11-01 19:05:31.612064+00:00 [info] <0.1074.0> connection 172.20.0.3:33022 -> 172.20.0.2:5672 - orders-api: user 'admin' authenticated and granted access to vhost '/'[0m
+rabbitmq  | [38;5;214m2026-11-01 19:06:06.053759+00:00 [warning] <0.1074.0> closing AMQP connection <0.1074.0> (172.20.0.3:33022 -> 172.20.0.2:5672 - orders-api, vhost: '/', user: 'admin', duration: '34s'):[0m
+rabbitmq  | [38;5;214m2026-11-01 19:06:06.053759+00:00 [warning] <0.1074.0> client unexpectedly closed TCP connection[0m
+rabbitmq  | 2026-11-01 19:06:06.057596+00:00 [info] <0.1057.0> closing AMQP connection (172.20.0.4:58772 -> 172.20.0.2:5672 - notification-worker-ddf2862f0695, vhost: '/', user: 'admin', duration: '34s')[0m
+rabbitmq  | 2026-11-01 19:06:07.805607+00:00 [info] <0.1104.0> accepting AMQP connection 172.20.0.4:40772 -> 172.20.0.2:5672[0m
+rabbitmq  | 2026-11-01 19:06:07.831989+00:00 [info] <0.1104.0> connection 172.20.0.4:40772 -> 172.20.0.2:5672 has a client-provided name: notification-worker-cb6ba480199b[0m
+rabbitmq  | 2026-11-01 19:06:07.834624+00:00 [info] <0.1104.0> User 'admin' authenticated successfully[0m
+rabbitmq  | 2026-11-01 19:06:07.883074+00:00 [info] <0.1104.0> connection 172.20.0.4:40772 -> 172.20.0.2:5672 - notification-worker-cb6ba480199b: user 'admin' authenticated and granted access to vhost '/'[0m
+rabbitmq  | 2026-11-01 19:06:08.125720+00:00 [info] <0.1118.0> accepting AMQP connection 172.20.0.3:43140 -> 172.20.0.2:5672[0m
+rabbitmq  | 2026-11-01 19:06:08.133802+00:00 [info] <0.1118.0> connection 172.20.0.3:43140 -> 172.20.0.2:5672 has a client-provided name: orders-api[0m
+rabbitmq  | 2026-11-01 19:06:08.134066+00:00 [info] <0.1118.0> User 'admin' authenticated successfully[0m
+rabbitmq  | 2026-11-01 19:06:08.178182+00:00 [info] <0.1118.0> connection 172.20.0.3:43140 -> 172.20.0.2:5672 - orders-api: user 'admin' authenticated and granted access to vhost '/'[0m
+rabbitmq  | 2026-11-01 19:06:11.587879+00:00 [info] <0.1132.0> User 'admin' authenticated successfully[0m
+
+>> Logs de arranque - orders-api
+orders-api  | 2026-11-01T19:06:08.119Z [orders-api] API escuchando en el puerto 3000 | endpoint=POST /orders
+orders-api  | 2026-11-01T19:06:08.187Z [orders-api] Conectado a RabbitMQ | broker=rabbitmq:5672 cola=pedidos durable=true
+
+>> Logs de arranque - notification-worker
+notification-worker-1  | 2026-11-01T19:06:07.905Z [notification-worker cb6ba480199b] Conectado a RabbitMQ y escuchando la cola | cola=pedidos prefetch=1 ack=manual
+
+[CAPTURA] Esta terminal (docker compose ps) y Docker Desktop con los 3 contenedores en ejecucion
+
+[CAPTURA] http://localhost:15672 (admin/admin): Overview, pestana Queues con "pedidos" (D = durable) y pestana Connections con orders-api y notification-worker
+
+ESTADO ENTORNO : CUMPLE
+Detalle: rabbitmq, orders-api y notification-worker en ejecucion; consumidores en la cola: 1
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101140653
+**********************

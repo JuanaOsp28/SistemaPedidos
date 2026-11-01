@@ -1,0 +1,48 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101140653
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-01 (RabbitMQ) - Creacion de pedido via API
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:06:53 -05:00
+
+>> Pedido valido
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Pedro","product":"Libro de arquitectura","quantity":1}'
+    HTTP 202 en 100.7 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-34247FCC","correlationId":"61f2d5fd-e9e6-4f41-a122-6330675ecc96"}
+
+>> Pedido invalido (quantity = 0, sin product)
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Pedro","quantity":0}'
+    HTTP 400 en 10.8 ms -> {"status":"rejected","errors":["product es obligatorio","quantity debe ser un entero mayor que 0"],"correlationId":"9665773d-8eb3-4fff-93bd-5fe11cdd2d10"}
+
+>> JSON mal formado
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName": "Pedro", '
+    HTTP 400 en 17.8 ms -> {"status":"rejected","errors":["JSON mal formado"]}
+
+>> Logs de orders-api
+PS> docker compose logs --since 2026-11-01T19:06:56Z orders-api
+orders-api  | 2026-11-01T19:06:58.165Z [orders-api] Pedido recibido | orderId=ORD-34247FCC correlationId=61f2d5fd-e9e6-4f41-a122-6330675ecc96 cliente=Pedro
+orders-api  | 2026-11-01T19:06:58.189Z [orders-api] Mensaje ProcessOrder publicado en RabbitMQ | orderId=ORD-34247FCC correlationId=61f2d5fd-e9e6-4f41-a122-6330675ecc96 cola=pedidos tiempoMs=27.8
+orders-api  | 2026-11-01T19:06:58.373Z [orders-api] Pedido rechazado por validacion | correlationId=9665773d-8eb3-4fff-93bd-5fe11cdd2d10 errores=product es obligatorio; quantity debe ser un entero mayor que 0
+
+ESTADO CP-01 : CUMPLE
+Detalle: Valido: HTTP 202 status=accepted orderId=ORD-34247FCC (100.7 ms). Invalido: HTTP 400. Mal formado: HTTP 400.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101140700
+**********************

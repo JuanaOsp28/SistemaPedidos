@@ -1,0 +1,121 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142747
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-12 (Kafka) - Recuperacion tras reiniciar consumidor y broker
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:27:47 -05:00
+
+>> A) Caida abrupta de inventory-consumer con eventos sin confirmar
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion1","product":"Disco SSD","quantity":1,"unitPrice":210000}'
+    HTTP 202 en 32.8 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-4C50A128","eventId":"77cbbc7e-3538-4834-98c3-9dea3460ed6d","correlationId":"d1185941-8282-4eeb-9cb1-f0d938c54012"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion2","product":"Disco SSD","quantity":1,"unitPrice":210000}'
+    HTTP 202 en 6.7 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-7F2F6F6F","eventId":"6fc1c312-ef9e-4cf4-a80f-b091ee79d9b1","correlationId":"a864c4b2-e5ed-415f-9ecb-5f251ff80590"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion3","product":"Disco SSD","quantity":1,"unitPrice":210000}'
+    HTTP 202 en 5 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-7B860680","eventId":"3e09f779-ce6d-471c-a386-ade59178866e","correlationId":"316a3b89-5f4a-49bc-ae9a-cb8aea5490e3"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion4","product":"Disco SSD","quantity":1,"unitPrice":210000}'
+    HTTP 202 en 14.9 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-A1672E3B","eventId":"55983986-58b1-4805-9d35-4506948a5acf","correlationId":"d9ef9128-4edd-4be2-9f2f-c50d0fba6fe6"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion5","product":"Disco SSD","quantity":1,"unitPrice":210000}'
+    HTTP 202 en 7.6 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-D92E04C1","eventId":"00e17474-9eed-4e9a-8de3-a7d301d012e8","correlationId":"b610e0eb-9c3b-4730-b0e5-a899a0158509"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion6","product":"Disco SSD","quantity":1,"unitPrice":210000}'
+    HTTP 202 en 6.7 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-3FECDC5D","eventId":"1068ed88-965a-4635-8893-d0b5cf2b62de","correlationId":"f1313da0-c80a-450b-b8e3-01a80b51b0d2"}
+PS> docker compose kill inventory-consumer
+ Container kafka-inventory-consumer-1 Killing
+ Container kafka-inventory-consumer-1 Killed
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group inventory-service-group
+
+GROUP                   TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                          HOST            CLIENT-ID
+inventory-service-group orders.events   0          6               9               3               inventory-consumer-9875165af12e-29a856a8-0a73-4c9e-a787-654b740b1956 /172.20.0.6     inventory-consumer-9875165af12e
+inventory-service-group orders.events   1          9               9               0               inventory-consumer-9875165af12e-29a856a8-0a73-4c9e-a787-654b740b1956 /172.20.0.6     inventory-consumer-9875165af12e
+inventory-service-group orders.events   2          17              18              1               inventory-consumer-9875165af12e-29a856a8-0a73-4c9e-a787-654b740b1956 /172.20.0.6     inventory-consumer-9875165af12e
+
+[CAPTURA] Kafka UI > Consumers > inventory-service-group: lag pendiente tras matar el consumidor
+PS> docker compose start inventory-consumer
+ Container kafka Waiting
+ Container kafka Healthy
+ Container kafka-init Starting
+ Container kafka-init Started
+ Container kafka-init Waiting
+ Container kafka-init Exited
+ Container kafka-inventory-consumer-1 Starting
+ Container kafka-inventory-consumer-1 Started
+PS> docker compose logs --since 2026-11-01T19:28:11Z inventory-consumer | Select-String 'Unido|Evento procesado'
+inventory-consumer-1  | 2026-11-01T19:28:20.727Z [inventory-consumer 9875165af12e] Unido al consumer group | grupo=inventory-service-group particionesAsignadas=0,1,2
+inventory-consumer-1  | 2026-11-01T19:28:22.279Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-7F2F6F6F partition=2 offset=17 procesadosPorEstaInstancia=1
+inventory-consumer-1  | 2026-11-01T19:28:23.796Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-7B860680 partition=0 offset=6 procesadosPorEstaInstancia=2
+inventory-consumer-1  | 2026-11-01T19:28:25.298Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-D92E04C1 partition=0 offset=7 procesadosPorEstaInstancia=3
+inventory-consumer-1  | 2026-11-01T19:28:26.798Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-3FECDC5D partition=0 offset=8 procesadosPorEstaInstancia=4
+Eventos perdidos: 0. Eventos reprocesados (entrega al-menos-una-vez): 0 ->
+
+>> B) Reinicio del broker Kafka
+Eventos en el log antes del reinicio: 36
+PS> docker compose restart kafka
+ Container kafka Restarting
+ Container kafka Started
+
+>> Pedido enviado mientras el broker arranca
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"DuranteReinicio","product":"Router","quantity":1,"unitPrice":180000}'
+    HTTP 202 en 5321.1 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-C0D54E6B","eventId":"7f00a0b9-aa51-4d46-8a84-00966e2a9b9f","correlationId":"2bb72e79-e535-460f-a771-94e07c139312"}
+Eventos en el log despues del reinicio: 37
+PS> docker compose logs --since 2026-11-01T19:28:37Z orders-api | Select-String 'publicado|Error|desconectado|Conectado'
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:40.967Z","logger":"kafkajs","message":"[Connection] Connection error: connect ECONNREFUSED 172.20.0.2:9092","broker":"kafka:9092","clientId":"orders-api","stack":"Error: connect ECONNREFUSED 172.20.0.2:9092\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16)"}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:40.973Z","logger":"kafkajs","message":"[Connection] Connection error: connect ECONNREFUSED 172.20.0.2:9092","broker":"kafka:9092","clientId":"orders-api","stack":"Error: connect ECONNREFUSED 172.20.0.2:9092\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16)"}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:40.975Z","logger":"kafkajs","message":"[Connection] Connection error: connect ECONNREFUSED 172.20.0.2:9092","broker":"kafka:9092","clientId":"orders-api","stack":"Error: connect ECONNREFUSED 172.20.0.2:9092\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16)"}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:40.977Z","logger":"kafkajs","message":"[BrokerPool] Failed to connect to seed broker, trying another broker from the list: Connection error: connect ECONNREFUSED 172.20.0.2:9092","retryCount":0,"retryTime":348}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:41.328Z","logger":"kafkajs","message":"[Connection] Connection error: connect ECONNREFUSED 172.20.0.2:9092","broker":"kafka:9092","clientId":"orders-api","stack":"Error: connect ECONNREFUSED 172.20.0.2:9092\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16)"}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:41.329Z","logger":"kafkajs","message":"[BrokerPool] Failed to connect to seed broker, trying another broker from the list: Connection error: connect ECONNREFUSED 172.20.0.2:9092","retryCount":1,"retryTime":774}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:42.106Z","logger":"kafkajs","message":"[Connection] Connection error: connect ECONNREFUSED 172.20.0.2:9092","broker":"kafka:9092","clientId":"orders-api","stack":"Error: connect ECONNREFUSED 172.20.0.2:9092\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16)"}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:42.106Z","logger":"kafkajs","message":"[BrokerPool] Failed to connect to seed broker, trying another broker from the list: Connection error: connect ECONNREFUSED 172.20.0.2:9092","retryCount":2,"retryTime":1418}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:43.527Z","logger":"kafkajs","message":"[Connection] Connection error: connect ECONNREFUSED 172.20.0.2:9092","broker":"kafka:9092","clientId":"orders-api","stack":"Error: connect ECONNREFUSED 172.20.0.2:9092\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16)"}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:43.527Z","logger":"kafkajs","message":"[BrokerPool] Failed to connect to seed broker, trying another broker from the list: Connection error: connect ECONNREFUSED 172.20.0.2:9092","retryCount":3,"retryTime":2338}
+orders-api-kafka  | {"level":"ERROR","timestamp":"2026-11-01T19:28:45.904Z","logger":"kafkajs","message":"[Producer] Failed to send messages: Connection error: connect ECONNREFUSED 172.20.0.2:9092","retryCount":0,"retryTime":310}
+orders-api-kafka  | 2026-11-01T19:28:46.251Z [orders-api] Evento OrderCreated publicado en Kafka | orderId=ORD-C0D54E6B eventId=7f00a0b9-aa51-4d46-8a84-00966e2a9b9f correlationId=2bb72e79-e535-460f-a771-94e07c139312 topico=orders.events particion=1 offset=9 tiempoMs=5298.7
+
+>> Nuevos pedidos tras el reinicio: los consumidores se reconectan y procesan
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"PostReinicio1","product":"Router","quantity":1,"unitPrice":180000}'
+    HTTP 202 en 16.2 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-0CE04B9C","eventId":"fe8b1536-8ac9-4587-9f6e-5d9ebd1811fa","correlationId":"78ffc002-dab0-4ad5-867e-a15500a2f7a5"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"PostReinicio2","product":"Router","quantity":1,"unitPrice":180000}'
+    HTTP 202 en 10.8 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-901B4D68","eventId":"64e79e08-8400-402e-8f61-6575cdfa9830","correlationId":"9e75a4fe-770a-43ea-945c-576220bc3acd"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"PostReinicio3","product":"Router","quantity":1,"unitPrice":180000}'
+    HTTP 202 en 7.1 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-2464B0C9","eventId":"5cfcb914-758b-48d9-8a1f-9a653836ff69","correlationId":"505a8a7a-5b61-43b1-82a6-eb5053cbe2a8"}
+[lag por grupo | final] inventory-service-group=0  billing-service-group=0  notification-service-group=0
+PS> docker compose logs --since 2026-11-01T19:28:37Z inventory-consumer | Select-String 'Unido|Evento procesado'
+inventory-consumer-1  | 2026-11-01T19:28:50.227Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-C0D54E6B partition=1 offset=9 procesadosPorEstaInstancia=5
+inventory-consumer-1  | 2026-11-01T19:28:53.072Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-0CE04B9C partition=2 offset=18 procesadosPorEstaInstancia=6
+inventory-consumer-1  | 2026-11-01T19:28:54.578Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-901B4D68 partition=0 offset=9 procesadosPorEstaInstancia=7
+inventory-consumer-1  | 2026-11-01T19:28:56.083Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-2464B0C9 partition=2 offset=19 procesadosPorEstaInstancia=8
+PS> docker compose logs --since 2026-11-01T19:28:37Z billing-consumer | Select-String 'Unido|Evento procesado'
+billing-consumer-1  | 2026-11-01T19:28:56.063Z [billing-consumer f47e4ab68e13] Unido al consumer group | grupo=billing-service-group particionesAsignadas=0,1,2
+billing-consumer-1  | 2026-11-01T19:28:57.078Z [billing-consumer f47e4ab68e13] Evento procesado | orderId=ORD-901B4D68 partition=0 offset=9 procesadosPorEstaInstancia=25
+billing-consumer-1  | 2026-11-01T19:28:58.087Z [billing-consumer f47e4ab68e13] Evento procesado | orderId=ORD-0CE04B9C partition=2 offset=18 procesadosPorEstaInstancia=26
+billing-consumer-1  | 2026-11-01T19:28:59.088Z [billing-consumer f47e4ab68e13] Evento procesado | orderId=ORD-2464B0C9 partition=2 offset=19 procesadosPorEstaInstancia=27
+billing-consumer-1  | 2026-11-01T19:29:00.092Z [billing-consumer f47e4ab68e13] Evento procesado | orderId=ORD-C0D54E6B partition=1 offset=9 procesadosPorEstaInstancia=28
+PS> docker compose logs --since 2026-11-01T19:28:37Z notification-consumer | Select-String 'Unido|Evento procesado'
+notification-consumer-1  | 2026-11-01T19:28:56.089Z [notification-consumer a761670a611f] Unido al consumer group | grupo=notification-service-group particionesAsignadas=0,1,2
+notification-consumer-1  | 2026-11-01T19:28:56.900Z [notification-consumer a761670a611f] Evento procesado | orderId=ORD-901B4D68 partition=0 offset=9 procesadosPorEstaInstancia=10
+notification-consumer-1  | 2026-11-01T19:28:57.706Z [notification-consumer a761670a611f] Evento procesado | orderId=ORD-C0D54E6B partition=1 offset=9 procesadosPorEstaInstancia=11
+notification-consumer-1  | 2026-11-01T19:28:58.510Z [notification-consumer a761670a611f] Evento procesado | orderId=ORD-0CE04B9C partition=2 offset=18 procesadosPorEstaInstancia=12
+notification-consumer-1  | 2026-11-01T19:28:59.310Z [notification-consumer a761670a611f] Evento procesado | orderId=ORD-2464B0C9 partition=2 offset=19 procesadosPorEstaInstancia=13
+
+ESTADO CP-12 : CUMPLE
+Detalle: A) lag tras matar inventory=4; al reiniciar se procesaron todos (perdidos=0, reprocesados=0). B) broker: eventos antes=36 despues=37; pedido durante el reinicio HTTP 202 en 5321.1 ms; 3 eventos posteriores procesados por los 3 consumidores (faltantes=0).
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142914
+**********************

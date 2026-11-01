@@ -1,0 +1,120 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142528
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-10 (Kafka) - Elastic: varias instancias del mismo consumer group
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:25:28 -05:00
+
+>> Escalado de inventory-consumer a 2 instancias (mismo grupo inventory-service-group)
+PS> docker compose up -d --scale inventory-consumer=2
+ Container kafka Running
+ Container orders-api-kafka Running
+ Container kafka-ui Running
+ Container kafka-billing-consumer-1 Running
+ Container kafka-inventory-consumer-1 Running
+ Container kafka-notification-consumer-1 Running
+ Container kafka-inventory-consumer-2 Creating
+ Container kafka-inventory-consumer-2 Created
+ Container kafka Waiting
+ Container kafka Waiting
+ Container kafka Healthy
+ Container kafka-init Starting
+ Container kafka Healthy
+ Container kafka-init Started
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Exited
+ Container kafka-init Exited
+ Container kafka-inventory-consumer-2 Starting
+ Container kafka-init Exited
+ Container kafka-init Exited
+ Container kafka-inventory-consumer-2 Started
+PS> docker compose logs --since 2026-11-01T19:25:27Z inventory-consumer | Select-String 'Unido al consumer group'
+inventory-consumer-2  | 2026-11-01T19:25:32.993Z [inventory-consumer 7ad4f60f9c57] Unido al consumer group | grupo=inventory-service-group particionesAsignadas=0,2
+inventory-consumer-1  | 2026-11-01T19:25:32.993Z [inventory-consumer 9875165af12e] Unido al consumer group | grupo=inventory-service-group particionesAsignadas=1
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group inventory-service-group --members --verbose
+
+GROUP                   CONSUMER-ID                                                          HOST            CLIENT-ID                       #PARTITIONS     ASSIGNMENT
+inventory-service-group inventory-consumer-7ad4f60f9c57-5e6c4f93-73a7-4c5a-93f4-96660c253fc5 /172.20.0.8     inventory-consumer-7ad4f60f9c57 2               orders.events(0,2)
+inventory-service-group inventory-consumer-9875165af12e-29a856a8-0a73-4c9e-a787-654b740b1956 /172.20.0.6     inventory-consumer-9875165af12e 1               orders.events(1)
+
+[CAPTURA] Kafka UI > Consumers > inventory-service-group: 2 miembros y la asignacion de particiones de cada uno
+12 pedidos enviados: 12 respuestas 202
+
+>> Eventos procesados por cada instancia
+inventory-consumer-1  | 2026-11-01T19:25:54.602Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-7399E293 partition=1 offset=2 procesadosPorEstaInstancia=7
+inventory-consumer-2  | 2026-11-01T19:25:54.460Z [inventory-consumer 7ad4f60f9c57] Evento procesado | orderId=ORD-3B172A68 partition=2 offset=9 procesadosPorEstaInstancia=1
+inventory-consumer-2  | 2026-11-01T19:25:55.973Z [inventory-consumer 7ad4f60f9c57] Evento procesado | orderId=ORD-80B0C35F partition=0 offset=4 procesadosPorEstaInstancia=2
+inventory-consumer-1  | 2026-11-01T19:25:56.110Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-ACE13C8C partition=1 offset=3 procesadosPorEstaInstancia=8
+inventory-consumer-1  | 2026-11-01T19:25:57.612Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-02C82DA7 partition=1 offset=4 procesadosPorEstaInstancia=9
+inventory-consumer-1  | 2026-11-01T19:25:59.113Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-0A438198 partition=1 offset=5 procesadosPorEstaInstancia=10
+inventory-consumer-1  | 2026-11-01T19:26:00.617Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-D2EB0CFE partition=1 offset=6 procesadosPorEstaInstancia=11
+inventory-consumer-2  | 2026-11-01T19:25:57.474Z [inventory-consumer 7ad4f60f9c57] Evento procesado | orderId=ORD-D8019A8E partition=0 offset=5 procesadosPorEstaInstancia=3
+inventory-consumer-2  | 2026-11-01T19:25:58.978Z [inventory-consumer 7ad4f60f9c57] Evento procesado | orderId=ORD-5B90E17C partition=2 offset=10 procesadosPorEstaInstancia=4
+inventory-consumer-2  | 2026-11-01T19:26:00.479Z [inventory-consumer 7ad4f60f9c57] Evento procesado | orderId=ORD-B07A62DC partition=2 offset=11 procesadosPorEstaInstancia=5
+inventory-consumer-2  | 2026-11-01T19:26:01.981Z [inventory-consumer 7ad4f60f9c57] Evento procesado | orderId=ORD-15AD48D0 partition=2 offset=12 procesadosPorEstaInstancia=6
+inventory-consumer-2  | 2026-11-01T19:26:03.482Z [inventory-consumer 7ad4f60f9c57] Evento procesado | orderId=ORD-CE32090D partition=2 offset=13 procesadosPorEstaInstancia=7
+
+Name                 Count
+----                 -----
+inventory-consumer-1     5
+inventory-consumer-2     7
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group inventory-service-group
+
+GROUP                   TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                          HOST            CLIENT-ID
+inventory-service-group orders.events   0          6               6               0               inventory-consumer-7ad4f60f9c57-5e6c4f93-73a7-4c5a-93f4-96660c253fc5 /172.20.0.8     inventory-consumer-7ad4f60f9c57
+inventory-service-group orders.events   2          14              14              0               inventory-consumer-7ad4f60f9c57-5e6c4f93-73a7-4c5a-93f4-96660c253fc5 /172.20.0.8     inventory-consumer-7ad4f60f9c57
+inventory-service-group orders.events   1          7               7               0               inventory-consumer-9875165af12e-29a856a8-0a73-4c9e-a787-654b740b1956 /172.20.0.6     inventory-consumer-9875165af12e
+
+>> Se vuelve a 1 instancia
+PS> docker compose up -d --scale inventory-consumer=1
+ Container kafka Running
+ Container kafka-ui Running
+ Container orders-api-kafka Running
+ Container kafka-notification-consumer-1 Running
+ Container kafka-billing-consumer-1 Running
+ Container kafka-inventory-consumer-1 Running
+ Container kafka-inventory-consumer-2 Stopping
+ Container kafka-inventory-consumer-2 Stopped
+ Container kafka-inventory-consumer-2 Removing
+ Container kafka-inventory-consumer-2 Removed
+ Container kafka Waiting
+ Container kafka Waiting
+ Container kafka Healthy
+ Container kafka Healthy
+ Container kafka-init Starting
+ Container kafka-init Started
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Exited
+ Container kafka-init Exited
+ Container kafka-init Exited
+ Container kafka-init Exited
+
+ESTADO CP-10 : CUMPLE
+Detalle: Reparto por particiones: inventory-consumer-1=5, inventory-consumer-2=7 (total 12/12, sin duplicados entre instancias)
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142621
+**********************

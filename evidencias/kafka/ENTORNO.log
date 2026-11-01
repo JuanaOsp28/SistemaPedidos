@@ -1,0 +1,326 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101141927
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+ENTORNO - Montaje y evidencias del entorno Kafka
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:19:27 -05:00
+
+>> Construccion y arranque de los contenedores
+PS> docker compose up -d --build
+ Image kafka-billing-consumer Building
+ Image kafka-notification-consumer Building
+ Image kafka-orders-api Building
+ Image kafka-inventory-consumer Building
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.42kB 0.2s done
+#1 DONE 0.2s
+
+#2 [notification-consumer internal] load build definition from Dockerfile
+#2 transferring dockerfile: 257B 0.0s done
+#2 DONE 0.1s
+
+#3 [billing-consumer internal] load build definition from Dockerfile
+#3 transferring dockerfile: 257B 0.0s done
+#3 DONE 0.1s
+
+#4 [inventory-consumer internal] load build definition from Dockerfile
+#4 transferring dockerfile: 257B 0.0s done
+#4 DONE 0.1s
+
+#5 [billing-consumer internal] load metadata for docker.io/library/node:20-alpine
+#5 ...
+
+#6 [orders-api internal] load build definition from Dockerfile
+#6 transferring dockerfile: 195B 0.0s done
+#6 DONE 0.1s
+
+#5 [orders-api internal] load metadata for docker.io/library/node:20-alpine
+#5 DONE 0.5s
+
+#7 [orders-api internal] load .dockerignore
+#7 transferring context: 2B 0.1s done
+#7 DONE 0.1s
+
+#8 [inventory-consumer internal] load .dockerignore
+#8 transferring context: 2B 0.1s done
+#8 DONE 0.1s
+
+#9 [notification-consumer internal] load .dockerignore
+#9 transferring context: 2B 0.1s done
+#9 DONE 0.1s
+
+#10 [billing-consumer internal] load .dockerignore
+#10 transferring context: 2B 0.1s done
+#10 DONE 0.1s
+
+#11 [orders-api 1/5] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+#11 resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+#11 resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 0.1s done
+#11 DONE 0.1s
+
+#12 [inventory-consumer internal] load build context
+#12 transferring context: 62B 0.1s done
+#12 DONE 0.1s
+
+#13 [notification-consumer internal] load build context
+#13 transferring context: 62B 0.1s done
+#13 DONE 0.1s
+
+#14 [billing-consumer internal] load build context
+#14 transferring context: 62B 0.1s done
+#14 DONE 0.1s
+
+#15 [orders-api internal] load build context
+#15 transferring context: 62B 0.1s done
+#15 DONE 0.1s
+
+#16 [inventory-consumer 4/5] RUN npm install --omit=dev --no-audit --no-fund
+#16 CACHED
+
+#17 [inventory-consumer 3/5] COPY package.json ./
+#17 CACHED
+
+#18 [inventory-consumer 5/5] COPY index.js ./
+#18 CACHED
+
+#19 [billing-consumer 4/5] RUN npm install --omit=dev --no-audit --no-fund
+#19 CACHED
+
+#20 [billing-consumer 2/5] WORKDIR /app
+#20 CACHED
+
+#21 [billing-consumer 3/5] COPY package.json ./
+#21 CACHED
+
+#22 [billing-consumer 5/5] COPY index.js ./
+#22 CACHED
+
+#23 [notification-consumer 3/5] COPY package.json ./
+#23 CACHED
+
+#24 [notification-consumer 4/5] RUN npm install --omit=dev --no-audit --no-fund
+#24 CACHED
+
+#25 [notification-consumer 5/5] COPY index.js ./
+#25 CACHED
+
+#26 [orders-api 4/5] RUN npm install --omit=dev --no-audit --no-fund
+#26 CACHED
+
+#20 [notification-consumer 2/5] WORKDIR /app
+#20 CACHED
+
+#27 [orders-api 3/5] COPY package.json ./
+#27 CACHED
+
+#28 [orders-api 5/5] COPY index.js ./
+#28 CACHED
+
+#29 [inventory-consumer] exporting to image
+#29 exporting layers done
+#29 exporting manifest sha256:933aadb4a9141e61583c66bff021245b5976614a928c352e74f377be9536c274 done
+#29 exporting config sha256:8bb3e016dfdbdc41c87341edaed79352620c078c431c31b1df65f36546c86ad7 done
+#29 exporting attestation manifest sha256:3efd2a9e6f634065a7e22dab4e7fba6e70762fc12852cb4b7d0deecb2081ad95
+#29 exporting attestation manifest sha256:3efd2a9e6f634065a7e22dab4e7fba6e70762fc12852cb4b7d0deecb2081ad95 0.1s done
+#29 exporting manifest list sha256:60b5b1798d7db51cd1886a0fd11bc6ee14f60ce9e4558efeab957d80bcc3826f
+#29 exporting manifest list sha256:60b5b1798d7db51cd1886a0fd11bc6ee14f60ce9e4558efeab957d80bcc3826f 0.1s done
+#29 naming to docker.io/library/kafka-inventory-consumer:latest 0.0s done
+#29 unpacking to docker.io/library/kafka-inventory-consumer:latest
+#29 unpacking to docker.io/library/kafka-inventory-consumer:latest 0.0s done
+#29 DONE 0.5s
+
+#30 [notification-consumer] exporting to image
+#30 exporting layers 0.0s done
+#30 exporting manifest sha256:871e18a14aff38128dfb0538097f654c057ff3c81cf972f8f34097eb47d05638 done
+#30 exporting config sha256:62db4749dee42388681fec447978e9937bf3e83807957d494b8072e9c216eb08 done
+#30 exporting attestation manifest sha256:d7e27e49d3d6af24b9dc2e5da8c9f2fb0086ee3f1182c3a7200db65a2aa9c1c4 0.1s done
+#30 exporting manifest list sha256:6c108e6faa69fcf65bab8c28a3e87fc16867b8fc6f31ea1c68db351e1b780938 0.1s done
+#30 naming to docker.io/library/kafka-notification-consumer:latest 0.0s done
+#30 unpacking to docker.io/library/kafka-notification-consumer:latest 0.0s done
+#30 DONE 0.5s
+
+#31 [orders-api] exporting to image
+#31 exporting layers done
+#31 exporting manifest sha256:7215c9558ccaacdb967b707b48ef30ab2a18436faed1633adbdf0afcce6df3b0 done
+#31 exporting config sha256:58ed86c1ad580ac17a2f96376559f1cebb08a4e2951dedefd5df428c994bc223 0.0s done
+#31 exporting attestation manifest sha256:d588b5a64f3778f3f51ed7e6354222542eee542234089054e9c934360a533462 0.1s done
+#31 exporting manifest list sha256:f2d75e80fdf22425aa1529711c6e5e5e443b89bd8d13766f5f22a455e2ff25b9 0.1s done
+#31 naming to docker.io/library/kafka-orders-api:latest 0.0s done
+#31 unpacking to docker.io/library/kafka-orders-api:latest 0.0s done
+#31 DONE 0.5s
+
+#32 [billing-consumer] exporting to image
+#32 exporting layers done
+#32 exporting manifest sha256:7bf2205cbf1e6c65c0f5629396cc2facada1ab12a7ac31ad39026886fbd82c5e 0.0s done
+#32 exporting config sha256:ac28a310cdcc085d8d1f201bca4ff7bebac5f122028ce0f4368c09a0182233b9 0.0s done
+#32 exporting attestation manifest sha256:3eae82e393eaecd39815592b66cf2bcb9afd40a584abddcf3c849199213f8894 0.2s done
+#32 exporting manifest list sha256:380f27b7a65a14c394feea33a38be54fd5c32deb2f40ebffe794033279dbcbae 0.1s done
+#32 naming to docker.io/library/kafka-billing-consumer:latest 0.0s done
+#32 unpacking to docker.io/library/kafka-billing-consumer:latest 0.0s done
+#32 DONE 0.5s
+
+#33 [inventory-consumer] resolving provenance for metadata file
+#33 ...
+
+#34 [billing-consumer] resolving provenance for metadata file
+#34 DONE 0.3s
+
+#35 [notification-consumer] resolving provenance for metadata file
+#35 DONE 0.4s
+
+#33 [inventory-consumer] resolving provenance for metadata file
+#33 DONE 0.5s
+
+#36 [orders-api] resolving provenance for metadata file
+#36 DONE 0.1s
+ Image kafka-notification-consumer Built
+ Image kafka-orders-api Built
+ Image kafka-billing-consumer Built
+ Image kafka-inventory-consumer Built
+ Container kafka Running
+ Container kafka-ui Running
+ Container kafka-billing-consumer-1 Recreate
+ Container orders-api-kafka Recreate
+ Container kafka-inventory-consumer-1 Recreate
+ Container kafka-notification-consumer-1 Recreate
+ Container orders-api-kafka Recreated
+ Container kafka-inventory-consumer-1 Recreated
+ Container kafka-billing-consumer-1 Recreated
+ Container kafka-notification-consumer-1 Recreated
+ Container kafka Waiting
+ Container kafka Waiting
+ Container kafka Healthy
+ Container kafka Healthy
+ Container kafka-init Starting
+ Container kafka-init Started
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Exited
+ Container orders-api-kafka Starting
+ Container kafka-init Exited
+ Container kafka-notification-consumer-1 Starting
+ Container kafka-init Exited
+ Container kafka-inventory-consumer-1 Starting
+ Container kafka-init Exited
+ Container kafka-billing-consumer-1 Starting
+ Container orders-api-kafka Started
+ Container kafka-notification-consumer-1 Started
+ Container kafka-billing-consumer-1 Started
+ Container kafka-inventory-consumer-1 Started
+
+>> Contenedores (kafka-init termina con codigo 0 tras crear el topico)
+PS> docker compose ps -a
+NAME                            IMAGE                           COMMAND                  SERVICE                 CREATED              STATUS                        PORTS
+kafka                           bitnamilegacy/kafka:3.7         "/opt/bitnami/script…"   kafka                   About a minute ago   Up About a minute (healthy)   0.0.0.0:29092->29092/tcp, [::]:29092->29092/tcp
+kafka-billing-consumer-1        kafka-billing-consumer          "docker-entrypoint.s…"   billing-consumer        21 seconds ago       Up 10 seconds
+kafka-init                      bitnamilegacy/kafka:3.7         "/bin/bash -c 'kafka…"   kafka-init              About a minute ago   Exited (0) 11 seconds ago
+kafka-inventory-consumer-1      kafka-inventory-consumer        "docker-entrypoint.s…"   inventory-consumer      21 seconds ago       Up 10 seconds
+kafka-notification-consumer-1   kafka-notification-consumer     "docker-entrypoint.s…"   notification-consumer   21 seconds ago       Up 10 seconds
+kafka-ui                        provectuslabs/kafka-ui:v0.7.2   "/bin/sh -c 'java --…"   kafka-ui                About a minute ago   Up About a minute             0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
+orders-api-kafka                kafka-orders-api                "docker-entrypoint.s…"   orders-api              21 seconds ago       Up 11 seconds                 0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+
+>> Puertos expuestos
+PS> docker ps --filter label=com.docker.compose.project=kafka --format table {{.Names}}\t{{.Status}}\t{{.Ports}}
+NAMES                           STATUS                        PORTS
+orders-api-kafka                Up 11 seconds                 0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+kafka-notification-consumer-1   Up 11 seconds
+kafka-billing-consumer-1        Up 11 seconds
+kafka-inventory-consumer-1      Up 11 seconds
+kafka-ui                        Up About a minute             0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
+kafka                           Up About a minute (healthy)   0.0.0.0:29092->29092/tcp, [::]:29092->29092/tcp
+
+>> Kafka UI accesible (http://localhost:8081)
+PS> curl.exe -s -o NUL -w HTTP %{http_code}\n http://localhost:8081/
+HTTP 200
+PS> curl.exe -s http://localhost:8081/api/clusters
+[{"name":"local","defaultCluster":null,"status":"online","lastError":null,"brokerCount":1,"onlinePartitionCount":53,"topicCount":2,"bytesInPerSec":null,"bytesOutPerSec":null,"readOnly":false,"version":"3.7-IV4","features":["TOPIC_DELETION"]}]
+
+
+>> Broker activo: topicos y descripcion de orders.events
+PS> docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --list
+__consumer_offsets
+orders.events
+PS> docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic orders.events
+Topic: orders.events	TopicId: bMG9aU8uSTGvOW0gTfxY9w	PartitionCount: 3	ReplicationFactor: 1	Configs:
+	Topic: orders.events	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
+	Topic: orders.events	Partition: 1	Leader: 1	Replicas: 1	Isr: 1
+	Topic: orders.events	Partition: 2	Leader: 1	Replicas: 1	Isr: 1
+
+>> Consumer groups registrados
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+billing-service-group
+inventory-service-group
+notification-service-group
+
+>> Logs de arranque - kafka (ultimas lineas)
+kafka  | [2026-11-01 19:19:44,624] INFO [GroupCoordinator 1]: Dynamic member with unknown member id joins group notification-service-group in Empty state. Created a new member id notification-consumer-a761670a611f-1ad732d0-8ba2-4446-af89-25bf47c6b374 and request the member to rejoin with this id. (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:44,632] INFO [GroupCoordinator 1]: Preparing to rebalance group notification-service-group in state PreparingRebalance with old generation 2 (__consumer_offsets-35) (reason: Adding new member notification-consumer-a761670a611f-1ad732d0-8ba2-4446-af89-25bf47c6b374 with group instance id None; client reason: not provided) (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:44,652] INFO [GroupCoordinator 1]: Dynamic member with unknown member id joins group billing-service-group in Empty state. Created a new member id billing-consumer-f47e4ab68e13-a6018926-b8f8-4662-8853-688e6a1fa8d6 and request the member to rejoin with this id. (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:44,656] INFO [GroupCoordinator 1]: Preparing to rebalance group billing-service-group in state PreparingRebalance with old generation 2 (__consumer_offsets-19) (reason: Adding new member billing-consumer-f47e4ab68e13-a6018926-b8f8-4662-8853-688e6a1fa8d6 with group instance id None; client reason: not provided) (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:44,674] INFO [GroupCoordinator 1]: Dynamic member with unknown member id joins group inventory-service-group in Empty state. Created a new member id inventory-consumer-9875165af12e-71a59fff-9498-401c-9514-c77f76366920 and request the member to rejoin with this id. (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:44,680] INFO [GroupCoordinator 1]: Preparing to rebalance group inventory-service-group in state PreparingRebalance with old generation 2 (__consumer_offsets-34) (reason: Adding new member inventory-consumer-9875165af12e-71a59fff-9498-401c-9514-c77f76366920 with group instance id None; client reason: not provided) (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:47,635] INFO [GroupCoordinator 1]: Stabilized group notification-service-group generation 3 (__consumer_offsets-35) with 1 members (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:47,653] INFO [GroupCoordinator 1]: Assignment received from leader notification-consumer-a761670a611f-1ad732d0-8ba2-4446-af89-25bf47c6b374 for group notification-service-group for generation 3. The group has 1 members, 0 of which are static. (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:47,657] INFO [GroupCoordinator 1]: Stabilized group billing-service-group generation 3 (__consumer_offsets-19) with 1 members (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:47,673] INFO [GroupCoordinator 1]: Assignment received from leader billing-consumer-f47e4ab68e13-a6018926-b8f8-4662-8853-688e6a1fa8d6 for group billing-service-group for generation 3. The group has 1 members, 0 of which are static. (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:47,680] INFO [GroupCoordinator 1]: Stabilized group inventory-service-group generation 3 (__consumer_offsets-34) with 1 members (kafka.coordinator.group.GroupCoordinator)
+kafka  | [2026-11-01 19:19:47,698] INFO [GroupCoordinator 1]: Assignment received from leader inventory-consumer-9875165af12e-71a59fff-9498-401c-9514-c77f76366920 for group inventory-service-group for generation 3. The group has 1 members, 0 of which are static. (kafka.coordinator.group.GroupCoordinator)
+
+>> Logs - kafka-init
+kafka-init  | WARNING: Due to limitations in metric names, topics with a period ('.') or underscore ('_') could collide. To avoid issues it is best to use either, but not both.
+kafka-init  | Created topic orders.events.
+kafka-init  | Topic: orders.events	TopicId: bMG9aU8uSTGvOW0gTfxY9w	PartitionCount: 3	ReplicationFactor: 1	Configs:
+kafka-init  | 	Topic: orders.events	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
+kafka-init  | 	Topic: orders.events	Partition: 1	Leader: 1	Replicas: 1	Isr: 1
+kafka-init  | 	Topic: orders.events	Partition: 2	Leader: 1	Replicas: 1	Isr: 1
+kafka-init  | WARNING: Due to limitations in metric names, topics with a period ('.') or underscore ('_') could collide. To avoid issues it is best to use either, but not both.
+kafka-init  | Topic: orders.events	TopicId: bMG9aU8uSTGvOW0gTfxY9w	PartitionCount: 3	ReplicationFactor: 1	Configs:
+kafka-init  | 	Topic: orders.events	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
+kafka-init  | 	Topic: orders.events	Partition: 1	Leader: 1	Replicas: 1	Isr: 1
+kafka-init  | 	Topic: orders.events	Partition: 2	Leader: 1	Replicas: 1	Isr: 1
+
+>> Logs de arranque - orders-api
+orders-api-kafka  | 2026-11-01T19:19:44.696Z [orders-api] API escuchando en el puerto 3000 | endpoint=POST /orders
+orders-api-kafka  | 2026-11-01T19:19:44.725Z [orders-api] Conectado a Kafka | broker=kafka:9092 topico=orders.events
+
+>> Logs de arranque - inventory-consumer
+inventory-consumer-1  | 2026-11-01T19:19:44.657Z [inventory-consumer 9875165af12e] Suscrito al topico | topico=orders.events grupo=inventory-service-group
+inventory-consumer-1  | 2026-11-01T19:19:47.703Z [inventory-consumer 9875165af12e] Unido al consumer group | grupo=inventory-service-group particionesAsignadas=0,1,2
+
+>> Logs de arranque - billing-consumer
+billing-consumer-1  | 2026-11-01T19:19:44.636Z [billing-consumer f47e4ab68e13] Suscrito al topico | topico=orders.events grupo=billing-service-group
+billing-consumer-1  | 2026-11-01T19:19:47.677Z [billing-consumer f47e4ab68e13] Unido al consumer group | grupo=billing-service-group particionesAsignadas=0,1,2
+
+>> Logs de arranque - notification-consumer
+notification-consumer-1  | 2026-11-01T19:19:44.598Z [notification-consumer a761670a611f] Suscrito al topico | topico=orders.events grupo=notification-service-group
+notification-consumer-1  | 2026-11-01T19:19:47.663Z [notification-consumer a761670a611f] Unido al consumer group | grupo=notification-service-group particionesAsignadas=0,1,2
+
+[CAPTURA] Esta terminal (docker compose ps -a) y Docker Desktop con kafka, kafka-ui, orders-api y los 3 consumidores
+
+[CAPTURA] http://localhost:8081 (Kafka UI): Brokers (1 broker activo), Topics > orders.events > Overview (3 particiones) y Consumers (3 grupos)
+
+ESTADO ENTORNO : CUMPLE
+Detalle: Kafka activo, Kafka UI HTTP 200, topico orders.events con 3 particiones y 3 consumer groups.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142032
+**********************

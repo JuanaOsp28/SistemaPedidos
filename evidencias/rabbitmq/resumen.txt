@@ -1,0 +1,44 @@
+﻿Ejecucion 2026-10-31 13:03:09 - casos: ENTORNO, CP-01, CP-02, CP-03, CP-06, CP-07, CP-08, CP-09, CP-10, CP-11, CP-12
+
+Caso    Estado Detalle                                                                                                                                            Hora    
+----    ------ -------                                                                                                                                            ----    
+ENTORNO CUMPLE rabbitmq, orders-api y notification-worker en ejecucion; consumidores en la cola: 1                                                                12:59:43
+CP-01   CUMPLE Valido: HTTP 202 status=accepted orderId=ORD-38D421E6 (33.6 ms). Invalido: HTTP 400. Mal formado: HTTP 400.                                        12:59:48
+CP-02   CUMPLE Ready paso de 0 a 1; mensaje con orderId=ORD-5AA758A1 visible en la cola pedidos, persistente (delivery_mode=2).                                   13:00:01
+CP-03   CUMPLE El worker recibio, proceso y confirmo (ack) ORD-756534D7. Unacked durante el procesamiento=1; Total al final=0.                                    13:00:10
+CP-06   CUMPLE orderId=ORD-13D935C5 correlationId=QA-RMQ-CP06-130013 aparece en orders-api, en el mensaje de la cola (correlation_id) y en notification-worker.   13:00:19
+CP-07   CUMPLE 8/8 respuestas 202; maximo 8.5 ms (< 2000 ms, minimo del procesamiento del worker). La API no espera al consumidor.                                13:00:51
+CP-08   CUMPLE El worker no expone puertos ni acepta conexiones (ECONNREFUSED); la API no lo invoca; ambos solo tienen conexion AMQP con rabbitmq.                13:00:55
+CP-09   CUMPLE Con el worker caido la API acepto 5/5 pedidos y la cola retuvo Ready=5 sin consumidores; al volver se procesaron 5.                                13:01:20
+CP-10   CUMPLE Reparto: notification-worker-1=5, notification-worker-2=5                                                                                          13:01:44
+CP-11   CUMPLE 4 mensajes publicados con el consumidor apagado (Ready=4); al iniciarlo se procesaron 4/4: ORD-7B0BE30E, ORD-31EEF4E9, ORD-2019F362, ORD-5CA1FE3B. 13:02:18
+CP-12   CUMPLE A) worker: Unacked 1->0, mensaje reentregado (redelivered=true), perdidos=0. B) broker: Ready 3 antes y 3 despues del reinicio, perdidos=0.        13:03:09
+
+
+
+Ejecucion 2026-11-01 14:12:25 - casos: ENTORNO, CP-01, CP-02, CP-03, CP-06, CP-07, CP-08, CP-09, CP-10, CP-11, CP-12
+
+Caso    Estado Detalle                                                                                                                                            Hora    
+----    ------ -------                                                                                                                                            ----    
+ENTORNO CUMPLE rabbitmq, orders-api y notification-worker en ejecucion; consumidores en la cola: 1                                                                14:06:53
+CP-01   CUMPLE Valido: HTTP 202 status=accepted orderId=ORD-34247FCC (100.7 ms). Invalido: HTTP 400. Mal formado: HTTP 400.                                       14:07:00
+CP-02   CUMPLE Ready paso de 0 a 1; mensaje con orderId=ORD-BD25BC79 visible en la cola pedidos, persistente (delivery_mode=2).                                   14:08:05
+CP-03   CUMPLE El worker recibio, proceso y confirmo (ack) ORD-7E5836D0. Unacked durante el procesamiento=1; Total al final=0.                                    14:08:15
+CP-06   CUMPLE orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819 aparece en orders-api, en el mensaje de la cola (correlation_id) y en notification-worker.   14:08:28
+CP-07   CUMPLE 8/8 respuestas 202; maximo 34.5 ms (< 2000 ms, minimo del procesamiento del worker). La API no espera al consumidor.                               14:09:05
+CP-08   CUMPLE El worker no expone puertos ni acepta conexiones (ECONNREFUSED); la API no lo invoca; ambos solo tienen conexion AMQP con rabbitmq.                14:09:14
+CP-09   CUMPLE Con el worker caido la API acepto 5/5 pedidos y la cola retuvo Ready=5 sin consumidores; al volver se procesaron 5.                                14:09:55
+CP-10   CUMPLE Reparto: notification-worker-1=6, notification-worker-2=4                                                                                          14:10:24
+CP-11   CUMPLE 4 mensajes publicados con el consumidor apagado (Ready=4); al iniciarlo se procesaron 4/4: ORD-781A9612, ORD-5087833B, ORD-B900FA84, ORD-997F3495. 14:11:11
+CP-12   CUMPLE A) worker: Unacked 1->0, mensaje reentregado (redelivered=true), perdidos=0. B) broker: Ready 3 antes y 3 despues del reinicio, perdidos=0.        14:12:25
+
+
+
+Ejecucion 2026-11-01 14:16:11 - casos: CP-10
+
+Caso  Estado Detalle                                                   Hora    
+----  ------ -------                                                   ----    
+CP-10 CUMPLE Reparto: notification-worker-2=6, notification-worker-1=4 14:16:11
+
+
+

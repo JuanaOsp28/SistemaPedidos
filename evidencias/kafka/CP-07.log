@@ -1,0 +1,78 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142307
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-07 (Kafka) - Responsive: la API responde sin esperar a los consumidores
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:23:08 -05:00
+
+>> Se envian 5 pedidos seguidos (inventario tarda 1500 ms, facturacion 1000 ms y notificacion 800 ms por evento)
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente1","product":"Mouse","quantity":1,"unitPrice":50000}'
+    HTTP 202 en 43 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-A25D2E9D","eventId":"79f6dec1-1d2d-4cb0-abe5-4dc32324b3df","correlationId":"7707bece-1505-4dba-a6d4-62b138b9f529"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente2","product":"Mouse","quantity":2,"unitPrice":50000}'
+    HTTP 202 en 24.4 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-DCADCDAA","eventId":"ec44d96b-48d0-4dfa-bb88-f0366e3c6959","correlationId":"e66fce2a-668c-473b-9e51-6bdf7daedfbb"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente3","product":"Mouse","quantity":3,"unitPrice":50000}'
+    HTTP 202 en 11.1 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-71822978","eventId":"b4bde9c7-7d96-4642-bc95-cf30f0d76f04","correlationId":"eedc71c3-4bd3-423b-a326-0cf3be66ea54"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente4","product":"Mouse","quantity":4,"unitPrice":50000}'
+    HTTP 202 en 12.7 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-CE3D2D3F","eventId":"a4f89091-930c-4125-9134-25a1154dec6d","correlationId":"c7206c50-e9ca-49e4-95a7-05cf7400e768"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente5","product":"Mouse","quantity":5,"unitPrice":50000}'
+    HTTP 202 en 10.3 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-EC8852DE","eventId":"d9ce7e5e-8b44-472b-a45f-b57536980df0","correlationId":"dce70afc-2749-4fd6-aaf8-ca7cd9164f8b"}
+[lag por grupo | justo despues de las 5 respuestas] inventory-service-group=4  billing-service-group=4  notification-service-group=0
+
+>> Con los 3 consumidores detenidos la API responde igual
+PS> docker compose stop inventory-consumer billing-consumer notification-consumer
+ Container kafka-notification-consumer-1 Stopping
+ Container kafka-inventory-consumer-1 Stopping
+ Container kafka-billing-consumer-1 Stopping
+ Container kafka-inventory-consumer-1 Stopped
+ Container kafka-notification-consumer-1 Stopped
+ Container kafka-billing-consumer-1 Stopped
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"SinConsumidores1","product":"Mouse","quantity":1,"unitPrice":50000}'
+    HTTP 202 en 8.2 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-95F456D4","eventId":"23610db7-6c8c-4ffd-8247-525e3c777dc2","correlationId":"acffac5f-bbd2-456a-8221-f9c8333271c4"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"SinConsumidores2","product":"Mouse","quantity":1,"unitPrice":50000}'
+    HTTP 202 en 25.6 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-0BDC8647","eventId":"cb0b029f-6087-4a44-99c6-d48627a623a3","correlationId":"c0a237d8-c685-49c1-88bb-c215bc2051b0"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"SinConsumidores3","product":"Mouse","quantity":1,"unitPrice":50000}'
+    HTTP 202 en 7.9 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-797B528F","eventId":"b4e6f476-e180-4049-8ed6-656368e32f59","correlationId":"d0aebd3c-24e3-44cb-95eb-06993b46e2e5"}
+PS> docker compose start inventory-consumer billing-consumer notification-consumer
+ Container kafka Waiting
+ Container kafka Healthy
+ Container kafka-init Starting
+ Container kafka-init Started
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Waiting
+ Container kafka-init Exited
+ Container kafka-init Exited
+ Container kafka-notification-consumer-1 Starting
+ Container kafka-billing-consumer-1 Starting
+ Container kafka-init Exited
+ Container kafka-inventory-consumer-1 Starting
+ Container kafka-notification-consumer-1 Started
+ Container kafka-inventory-consumer-1 Started
+ Container kafka-billing-consumer-1 Started
+
+Tiempo de respuesta HTTP: promedio=17,9 ms, maximo=43 ms
+Las 5 respuestas llegaron en 0,4 s; los consumidores tardaron 17,7 s en ponerse al dia
+
+ESTADO CP-07 : CUMPLE
+Detalle: 8/8 respuestas 202; maximo 43 ms (< 800 ms, el procesamiento mas corto). La API no espera a los consumidores.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142407
+**********************

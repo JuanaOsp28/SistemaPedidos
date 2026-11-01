@@ -1,0 +1,61 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142053
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-04 (Kafka) - Publicacion del evento OrderCreated
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:20:54 -05:00
+PS> docker exec kafka kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic orders.events
+orders.events:0:1
+orders.events:1:0
+orders.events:2:0
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Ana","product":"Teclado mecanico","quantity":2,"unitPrice":120000}'
+    HTTP 202 en 27.5 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-574AD8C6","eventId":"c1722dfc-5e0a-410b-8a14-e67233053f29","correlationId":"3cecb97c-a1f5-45e7-be43-ef884399c12c"}
+PS> docker exec kafka kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic orders.events
+orders.events:0:2
+orders.events:1:0
+orders.events:2:0
+Eventos en el topico: antes=1 despues=2
+
+>> Log de publicacion en orders-api (particion y offset asignados por el broker)
+PS> docker compose logs --since 2026-11-01T19:21:14Z orders-api | Select-String 'ORD-574AD8C6'
+orders-api-kafka  | 2026-11-01T19:21:15.909Z [orders-api] Pedido recibido | orderId=ORD-574AD8C6 correlationId=3cecb97c-a1f5-45e7-be43-ef884399c12c cliente=Ana
+orders-api-kafka  | 2026-11-01T19:21:15.916Z [orders-api] Evento OrderCreated publicado en Kafka | orderId=ORD-574AD8C6 eventId=c1722dfc-5e0a-410b-8a14-e67233053f29 correlationId=3cecb97c-a1f5-45e7-be43-ef884399c12c topico=orders.events particion=0 offset=1 tiempoMs=7.6
+
+>> El evento almacenado en el broker
+PS> docker exec kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic orders.events --from-beginning --property print.key=true --property print.partition=true --property print.offset=true --property print.headers=true | Select-String 'ORD-574AD8C6'
+Partition:0	Offset:1	eventType:OrderCreated,eventId:c1722dfc-5e0a-410b-8a14-e67233053f29,correlationId:3cecb97c-a1f5-45e7-be43-ef884399c12c	ORD-574AD8C6	{"eventId":"c1722dfc-5e0a-410b-8a14-e67233053f29","eventType":"OrderCreated","eventVersion":"1.0","occurredAt":"2026-11-01T19:21:15.909Z","source":"orders-api","correlationId":"3cecb97c-a1f5-45e7-be43-ef884399c12c","data":{"orderId":"ORD-574AD8C6","customerName":"Ana","product":"Teclado mecanico","quantity":2,"unitPrice":120000,"total":240000}}
+
+>> Validacion del contrato del evento
+    eventId        = c1722dfc-5e0a-410b-8a14-e67233053f29
+    eventType      = OrderCreated
+    eventVersion   = 1.0
+    occurredAt     = 2026-11-01T19:21:15.909Z
+    source         = orders-api
+    correlationId  = 3cecb97c-a1f5-45e7-be43-ef884399c12c
+    data           = {"orderId":"ORD-574AD8C6","customerName":"Ana","product":"Teclado mecanico","quantity":2,"unitPrice":120000,"total":240000}
+
+[CAPTURA] Kafka UI > Topics > orders.events > Messages: el evento con key ORD-574AD8C6 abierto (JSON con eventType=OrderCreated), y la pestana Overview con el conteo de mensajes
+
+ESTADO CP-04 : CUMPLE
+Detalle: Evento OrderCreated de ORD-574AD8C6 almacenado en orders.events (eventos 1 -> 2); campos obligatorios presentes; total=240000.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142146
+**********************

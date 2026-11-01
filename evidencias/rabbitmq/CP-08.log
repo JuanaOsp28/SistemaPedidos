@@ -1,0 +1,55 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101140905
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-08 (RabbitMQ) - Message-driven: no existe comunicacion directa entre servicios
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:09:06 -05:00
+
+>> 1) El worker no publica puertos
+PS> docker compose ps --format table {{.Service}}\t{{.Ports}}
+SERVICE               PORTS
+orders-api            0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+rabbitmq              0.0.0.0:5672->5672/tcp, [::]:5672->5672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+notification-worker
+
+>> 2) El worker no escucha ningun puerto TCP dentro de su contenedor
+PS> docker compose exec notification-worker netstat -tln
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 127.0.0.11:36467        0.0.0.0:*               LISTEN
+
+>> 3) Desde orders-api no es posible abrir una conexion al worker
+PS> docker compose exec orders-api node -e require('net').connect(3000,'notification-worker').on('connect',()=>{console.log('CONECTADO');process.exit(0)}).on('error',e=>{console.log('Sin conexion directa al worker: '+e.code);process.exit(0)})
+Sin conexion directa al worker: ECONNREFUSED
+
+>> 4) El codigo de la API no contiene llamadas HTTP al worker
+PS> Select-String -Path orders-api\index.js -Pattern 'notification-worker|http.request|fetch\(|axios'
+    (sin coincidencias)
+
+>> 5) Ambos servicios solo se conectan al broker (conexiones AMQP en RabbitMQ)
+    orders-api                               peer=172.20.0.3:43140 -> rabbitmq:5672 protocolo=AMQP 0-9-1
+    notification-worker-cb6ba480199b         peer=172.20.0.4:52694 -> rabbitmq:5672 protocolo=AMQP 0-9-1
+
+ESTADO CP-08 : CUMPLE
+Detalle: El worker no expone puertos ni acepta conexiones (ECONNREFUSED); la API no lo invoca; ambos solo tienen conexion AMQP con rabbitmq.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101140914
+**********************

@@ -1,0 +1,56 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101140815
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-06 (RabbitMQ) - Trazabilidad del flujo (orderId / correlationId)
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:08:15 -05:00
+PS> docker compose stop notification-worker
+ Container rabbitmq-notification-worker-1 Stopping
+ Container rabbitmq-notification-worker-1 Stopped
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Marta","product":"Silla ergonomica","quantity":1}' -H 'X-Correlation-Id: QA-RMQ-CP06-140819'
+    HTTP 202 en 19.7 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-41AFB316","correlationId":"QA-RMQ-CP06-140819"}
+
+>> 1) API: logs de orders-api
+PS> docker compose logs --since 2026-11-01T19:08:19Z orders-api | Select-String 'QA-RMQ-CP06-140819'
+orders-api  | 2026-11-01T19:08:20.913Z [orders-api] Pedido recibido | orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819 cliente=Marta
+orders-api  | 2026-11-01T19:08:20.917Z [orders-api] Mensaje ProcessOrder publicado en RabbitMQ | orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819 cola=pedidos tiempoMs=4.4
+
+>> 2) Broker: mensaje almacenado en la cola pedidos
+PS> curl.exe -u admin:admin -X POST http://localhost:15672/api/queues/%2F/pedidos/get -d '{count:10, ackmode:ack_requeue_true}'
+    routing_key=pedidos redelivered=False delivery_mode=2 (2=persistente) correlation_id=QA-RMQ-CP06-140819 message_id=e6840e3a-bde2-45e5-a6ff-9d436dc9518f type=ProcessOrder
+    payload={"type":"ProcessOrder","orderId":"ORD-41AFB316","correlationId":"QA-RMQ-CP06-140819","customerName":"Marta","product":"Silla ergonomica","quantity":1,"createdAt":"2026-11-01T19:08:20.913Z"}
+
+>> 3) Consumidor: se inicia el worker y se sigue el mismo pedido
+PS> docker compose start notification-worker
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-1 Starting
+ Container rabbitmq-notification-worker-1 Started
+PS> docker compose logs --since 2026-11-01T19:08:19Z notification-worker | Select-String 'ORD-41AFB316'
+notification-worker-1  | 2026-11-01T19:08:23.239Z [notification-worker cb6ba480199b] Mensaje recibido | tipo=ProcessOrder orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819 redelivered=true deliveryTag=1
+notification-worker-1  | 2026-11-01T19:08:23.240Z [notification-worker cb6ba480199b] Simulando envio de notificacion... | orderId=ORD-41AFB316 cliente=Marta duracionMs=3245
+notification-worker-1  | 2026-11-01T19:08:26.493Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819 procesadosPorEsteWorker=1
+
+ESTADO CP-06 : CUMPLE
+Detalle: orderId=ORD-41AFB316 correlationId=QA-RMQ-CP06-140819 aparece en orders-api, en el mensaje de la cola (correlation_id) y en notification-worker.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101140828
+**********************

@@ -1,0 +1,78 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142426
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-09 (Kafka) - Resilient: el sistema soporta la caida de un consumidor
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:24:26 -05:00
+
+>> Caida abrupta de billing-consumer (SIGKILL)
+PS> docker compose kill billing-consumer
+ Container kafka-billing-consumer-1 Killing
+ Container kafka-billing-consumer-1 Killed
+PS> docker compose ps
+NAME                            IMAGE                           COMMAND                  SERVICE                 CREATED         STATUS                   PORTS
+kafka                           bitnamilegacy/kafka:3.7         "/opt/bitnami/script…"   kafka                   5 minutes ago   Up 5 minutes (healthy)   0.0.0.0:29092->29092/tcp, [::]:29092->29092/tcp
+kafka-inventory-consumer-1      kafka-inventory-consumer        "docker-entrypoint.s…"   inventory-consumer      5 minutes ago   Up 48 seconds
+kafka-notification-consumer-1   kafka-notification-consumer     "docker-entrypoint.s…"   notification-consumer   5 minutes ago   Up 48 seconds
+kafka-ui                        provectuslabs/kafka-ui:v0.7.2   "/bin/sh -c 'java --…"   kafka-ui                5 minutes ago   Up 5 minutes             0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
+orders-api-kafka                kafka-orders-api                "docker-entrypoint.s…"   orders-api              5 minutes ago   Up 4 minutes             0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+
+>> La API sigue aceptando pedidos y los otros consumidores siguen procesando
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Resiliencia1","product":"Cable HDMI","quantity":1,"unitPrice":30000}'
+    HTTP 202 en 22.6 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-8DFCF713","eventId":"d8b192bd-ce12-4121-9878-d1f089c4f1e9","correlationId":"ad8d2f38-c356-4e92-886a-d748df710187"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Resiliencia2","product":"Cable HDMI","quantity":1,"unitPrice":30000}'
+    HTTP 202 en 7.8 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-97D26ACF","eventId":"114305cc-19df-444c-a571-1c0126538d2f","correlationId":"3daf2247-9293-4ec2-99db-8a6785999490"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Resiliencia3","product":"Cable HDMI","quantity":1,"unitPrice":30000}'
+    HTTP 202 en 5.3 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-2CFF4661","eventId":"0baa2b0e-fbd2-43b0-849c-7ffbee355907","correlationId":"90f1eaeb-4962-4543-a76a-0ccb8ce2ff86"}
+[lag por grupo | con billing caido] inventory-service-group=0  billing-service-group=3  notification-service-group=0
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group billing-service-group
+System.Management.Automation.RemoteException
+Consumer group 'billing-service-group' has no active members.
+
+GROUP                 TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+billing-service-group orders.events   0          3               4               1               -               -               -
+billing-service-group orders.events   1          2               2               0               -               -               -
+billing-service-group orders.events   2          7               9               2               -               -               -
+
+[CAPTURA] Kafka UI > Consumers: billing-service-group sin miembros activos y lag=3, mientras inventory y notification tienen lag=0
+Eventos procesados por inventory + notification mientras billing estaba caido: 6
+
+>> Se recupera billing-consumer y se pone al dia
+PS> docker compose start billing-consumer
+ Container kafka Waiting
+ Container kafka Healthy
+ Container kafka-init Starting
+ Container kafka-init Started
+ Container kafka-init Waiting
+ Container kafka-init Exited
+ Container kafka-billing-consumer-1 Starting
+ Container kafka-billing-consumer-1 Started
+[lag por grupo | final] inventory-service-group=0  billing-service-group=0  notification-service-group=0
+PS> docker compose logs --since 2026-11-01T19:25:04Z billing-consumer | Select-String 'Factura generada'
+billing-consumer-1  | 2026-11-01T19:25:13.774Z [billing-consumer f47e4ab68e13] Factura generada | orderId=ORD-2CFF4661 factura=FAC-2CFF4661 total=30000
+billing-consumer-1  | 2026-11-01T19:25:14.789Z [billing-consumer f47e4ab68e13] Factura generada | orderId=ORD-8DFCF713 factura=FAC-8DFCF713 total=30000
+billing-consumer-1  | 2026-11-01T19:25:15.790Z [billing-consumer f47e4ab68e13] Factura generada | orderId=ORD-97D26ACF factura=FAC-97D26ACF total=30000
+
+ESTADO CP-09 : CUMPLE
+Detalle: Con billing caido: API 3/3 aceptados, inventory+notification procesaron 6/6, lag de billing=3; al volver billing genero 3 facturas.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142528
+**********************

@@ -1,0 +1,65 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101140914
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-09 (RabbitMQ) - Resilient: el sistema soporta la caida del consumidor
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:09:14 -05:00
+
+>> Caida abrupta del worker (SIGKILL)
+PS> docker compose kill notification-worker
+ Container rabbitmq-notification-worker-1 Killing
+ Container rabbitmq-notification-worker-1 Killed
+PS> docker compose ps
+NAME         IMAGE                   COMMAND                  SERVICE      CREATED         STATUS                   PORTS
+orders-api   rabbitmq-orders-api     "docker-entrypoint.s…"   orders-api   3 minutes ago   Up 3 minutes             0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+rabbitmq     rabbitmq:4-management   "docker-entrypoint.s…"   rabbitmq     4 minutes ago   Up 4 minutes (healthy)   0.0.0.0:5672->5672/tcp, [::]:5672->5672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+[cola pedidos | worker caido] Ready=0 Unacked=0 Total=0 Consumidores=0
+
+>> La API sigue aceptando pedidos
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Resiliencia1","product":"Cable HDMI","quantity":1}'
+    HTTP 202 en 32.7 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-497C5DA1","correlationId":"516a8b4d-3c69-4c65-96b1-5110c74fbb61"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Resiliencia2","product":"Cable HDMI","quantity":1}'
+    HTTP 202 en 21.8 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-3363DB46","correlationId":"c89d4031-3eb0-48dc-ba99-256989a95450"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Resiliencia3","product":"Cable HDMI","quantity":1}'
+    HTTP 202 en 13.2 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-B16B5784","correlationId":"4acf519a-3b9e-4b0f-a5e6-b5c5589ab272"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Resiliencia4","product":"Cable HDMI","quantity":1}'
+    HTTP 202 en 26.2 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-3611B102","correlationId":"91322a61-409d-43a6-84bc-c9425fafca0f"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Resiliencia5","product":"Cable HDMI","quantity":1}'
+    HTTP 202 en 11.5 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-B8EA61C7","correlationId":"b10e0619-15c7-416d-b0b9-a57b1d71cb63"}
+PS> curl.exe -s http://localhost:3000/health
+{"service":"orders-api","broker":"connected"}
+[cola pedidos | tras 5 pedidos con el worker caido] Ready=5 Unacked=0 Total=5 Consumidores=0
+
+[CAPTURA] RabbitMQ > Queues: pedidos con Ready=5, Consumers=0 (worker caido) mientras la API sigue respondiendo 202
+
+>> Se recupera el worker y procesa lo acumulado
+PS> docker compose start notification-worker
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-1 Starting
+ Container rabbitmq-notification-worker-1 Started
+[cola pedidos | final] Ready=0 Unacked=0 Total=0 Consumidores=1
+
+ESTADO CP-09 : CUMPLE
+Detalle: Con el worker caido la API acepto 5/5 pedidos y la cola retuvo Ready=5 sin consumidores; al volver se procesaron 5.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101140955
+**********************

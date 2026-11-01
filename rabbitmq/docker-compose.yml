@@ -1,0 +1,50 @@
+# Arquitectura basada en mensajes con RabbitMQ
+#   docker compose up -d --build
+#   docker compose up -d --scale notification-worker=2   (prueba de elasticidad)
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq
+    hostname: rabbitmq            # nombre de nodo fijo: los datos persisten entre reinicios
+    ports:
+      - "5672:5672"               # AMQP (orders-api y notification-worker)
+      - "15672:15672"             # Consola web RabbitMQ Management
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  orders-api:
+    build: ./orders-api
+    container_name: orders-api
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672
+      - QUEUE_NAME=pedidos
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  # Sin container_name para poder escalar con --scale notification-worker=N.
+  # Sin "ports": el worker no expone ningun endpoint HTTP.
+  notification-worker:
+    build: ./notification-worker
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672
+      - QUEUE_NAME=pedidos
+      - PROCESSING_MIN_MS=2000
+      - PROCESSING_MAX_MS=5000
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  rabbitmq-data:

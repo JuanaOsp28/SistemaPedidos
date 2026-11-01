@@ -1,0 +1,48 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142032
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-01 (Kafka) - Creacion de pedido via API
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:20:32 -05:00
+
+>> Pedido valido
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Pedro","product":"Libro de arquitectura","quantity":1,"unitPrice":85000}'
+    HTTP 202 en 264.9 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-E414562D","eventId":"0f0adc2b-b051-4603-920a-6a9b8a38c76b","correlationId":"e6788e5c-dc96-468d-9824-b1169a148b63"}
+
+>> Pedido invalido (sin unitPrice, quantity negativa)
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Pedro","product":"Libro","quantity":-2}'
+    HTTP 400 en 7.4 ms -> {"status":"rejected","errors":["quantity debe ser un entero mayor que 0","unitPrice debe ser un numero mayor o igual a 0"],"correlationId":"69dd6077-1454-48c2-b5cd-243d9b17d47a"}
+
+>> JSON mal formado
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName": "Pedro", '
+    HTTP 400 en 22 ms -> {"status":"rejected","errors":["JSON mal formado"]}
+
+>> Logs de orders-api
+PS> docker compose logs --since 2026-11-01T19:20:49Z orders-api
+orders-api-kafka  | 2026-11-01T19:20:51.441Z [orders-api] Pedido recibido | orderId=ORD-E414562D correlationId=e6788e5c-dc96-468d-9824-b1169a148b63 cliente=Pedro
+orders-api-kafka  | 2026-11-01T19:20:51.603Z [orders-api] Evento OrderCreated publicado en Kafka | orderId=ORD-E414562D eventId=0f0adc2b-b051-4603-920a-6a9b8a38c76b correlationId=e6788e5c-dc96-468d-9824-b1169a148b63 topico=orders.events particion=0 offset=0 tiempoMs=166.6
+orders-api-kafka  | 2026-11-01T19:20:51.947Z [orders-api] Pedido rechazado por validacion | correlationId=69dd6077-1454-48c2-b5cd-243d9b17d47a errores=quantity debe ser un entero mayor que 0; unitPrice debe ser un numero mayor o igual a 0
+
+ESTADO CP-01 : CUMPLE
+Detalle: Valido: HTTP 202 status=accepted orderId=ORD-E414562D (264.9 ms). Invalido: HTTP 400. Mal formado: HTTP 400.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142053
+**********************

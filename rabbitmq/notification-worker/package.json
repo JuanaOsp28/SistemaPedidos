@@ -1,0 +1,12 @@
+{
+  "name": "notification-worker",
+  "version": "1.0.0",
+  "description": "Consumidor de la cola pedidos que simula el envio de notificaciones",
+  "main": "worker.js",
+  "scripts": {
+    "start": "node worker.js"
+  },
+  "dependencies": {
+    "amqplib": "0.10.9"
+  }
+}

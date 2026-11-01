@@ -1,0 +1,40 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101140805
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-03 (RabbitMQ) - Consumo de mensaje
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:08:05 -05:00
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Luis","product":"Monitor","quantity":1}'
+    HTTP 202 en 17.7 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-7E5836D0","correlationId":"5c03d8b0-8020-41a5-a8c7-468c0137e8f8"}
+[cola pedidos | durante el procesamiento] Ready=0 Unacked=1 Total=1 Consumidores=1
+[cola pedidos | despues del ack] Ready=0 Unacked=0 Total=0 Consumidores=1
+
+>> Logs del worker para el pedido
+PS> docker compose logs --since 2026-11-01T19:08:08Z notification-worker | Select-String 'ORD-7E5836D0'
+notification-worker-1  | 2026-11-01T19:08:09.981Z [notification-worker cb6ba480199b] Mensaje recibido | tipo=ProcessOrder orderId=ORD-7E5836D0 correlationId=5c03d8b0-8020-41a5-a8c7-468c0137e8f8 redelivered=false deliveryTag=2
+notification-worker-1  | 2026-11-01T19:08:09.981Z [notification-worker cb6ba480199b] Simulando envio de notificacion... | orderId=ORD-7E5836D0 cliente=Luis duracionMs=2622
+notification-worker-1  | 2026-11-01T19:08:12.606Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-7E5836D0 correlationId=5c03d8b0-8020-41a5-a8c7-468c0137e8f8 procesadosPorEsteWorker=2
+
+ESTADO CP-03 : CUMPLE
+Detalle: El worker recibio, proceso y confirmo (ack) ORD-7E5836D0. Unacked durante el procesamiento=1; Total al final=0.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101140815
+**********************

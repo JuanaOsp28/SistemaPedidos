@@ -1,0 +1,76 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142146
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-05 (Kafka) - Consumo del evento por cada consumidor
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:21:46 -05:00
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Luis","product":"Monitor 27","quantity":1,"unitPrice":950000}'
+    HTTP 202 en 43.2 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-8CC10BC2","eventId":"8ad5e85b-c066-413f-83b1-6a72cc3138bf","correlationId":"a5f937be-59d6-4069-b4d3-1241a47abd27"}
+
+>> Logs de inventory-consumer
+PS> docker compose logs --since 2026-11-01T19:22:02Z inventory-consumer | Select-String 'ORD-8CC10BC2'
+inventory-consumer-1  | 2026-11-01T19:22:04.009Z [inventory-consumer 9875165af12e] Evento recibido | eventType=OrderCreated eventId=8ad5e85b-c066-413f-83b1-6a72cc3138bf orderId=ORD-8CC10BC2 correlationId=a5f937be-59d6-4069-b4d3-1241a47abd27 topic=orders.events partition=2 offset=0
+inventory-consumer-1  | 2026-11-01T19:22:04.012Z [inventory-consumer 9875165af12e] Simulando reserva de inventario... | orderId=ORD-8CC10BC2 producto=Monitor 27 cantidad=1
+inventory-consumer-1  | 2026-11-01T19:22:05.514Z [inventory-consumer 9875165af12e] Inventario reservado | orderId=ORD-8CC10BC2 producto=Monitor 27 unidadesReservadas=1
+inventory-consumer-1  | 2026-11-01T19:22:05.514Z [inventory-consumer 9875165af12e] Evento procesado | orderId=ORD-8CC10BC2 partition=2 offset=0 procesadosPorEstaInstancia=3
+
+>> Logs de billing-consumer
+PS> docker compose logs --since 2026-11-01T19:22:02Z billing-consumer | Select-String 'ORD-8CC10BC2'
+billing-consumer-1  | 2026-11-01T19:22:04.010Z [billing-consumer f47e4ab68e13] Evento recibido | eventType=OrderCreated eventId=8ad5e85b-c066-413f-83b1-6a72cc3138bf orderId=ORD-8CC10BC2 correlationId=a5f937be-59d6-4069-b4d3-1241a47abd27 topic=orders.events partition=2 offset=0
+billing-consumer-1  | 2026-11-01T19:22:04.014Z [billing-consumer f47e4ab68e13] Simulando generacion de factura... | orderId=ORD-8CC10BC2 cliente=Luis
+billing-consumer-1  | 2026-11-01T19:22:05.015Z [billing-consumer f47e4ab68e13] Factura generada | orderId=ORD-8CC10BC2 factura=FAC-8CC10BC2 total=950000
+billing-consumer-1  | 2026-11-01T19:22:05.015Z [billing-consumer f47e4ab68e13] Evento procesado | orderId=ORD-8CC10BC2 partition=2 offset=0 procesadosPorEstaInstancia=3
+
+>> Logs de notification-consumer
+PS> docker compose logs --since 2026-11-01T19:22:02Z notification-consumer | Select-String 'ORD-8CC10BC2'
+notification-consumer-1  | 2026-11-01T19:22:04.007Z [notification-consumer a761670a611f] Evento recibido | eventType=OrderCreated eventId=8ad5e85b-c066-413f-83b1-6a72cc3138bf orderId=ORD-8CC10BC2 correlationId=a5f937be-59d6-4069-b4d3-1241a47abd27 topic=orders.events partition=2 offset=0
+notification-consumer-1  | 2026-11-01T19:22:04.010Z [notification-consumer a761670a611f] Simulando envio de notificacion... | orderId=ORD-8CC10BC2 cliente=Luis
+notification-consumer-1  | 2026-11-01T19:22:04.812Z [notification-consumer a761670a611f] Notificacion enviada al cliente | orderId=ORD-8CC10BC2 cliente=Luis producto=Monitor 27
+notification-consumer-1  | 2026-11-01T19:22:04.813Z [notification-consumer a761670a611f] Evento procesado | orderId=ORD-8CC10BC2 partition=2 offset=0 procesadosPorEstaInstancia=3
+
+>> Offsets de cada consumer group tras el consumo
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group inventory-service-group
+
+GROUP                   TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                          HOST            CLIENT-ID
+inventory-service-group orders.events   0          2               2               0               inventory-consumer-9875165af12e-71a59fff-9498-401c-9514-c77f76366920 /172.20.0.7     inventory-consumer-9875165af12e
+inventory-service-group orders.events   1          -               0               -               inventory-consumer-9875165af12e-71a59fff-9498-401c-9514-c77f76366920 /172.20.0.7     inventory-consumer-9875165af12e
+inventory-service-group orders.events   2          1               1               0               inventory-consumer-9875165af12e-71a59fff-9498-401c-9514-c77f76366920 /172.20.0.7     inventory-consumer-9875165af12e
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group billing-service-group
+
+GROUP                 TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                        HOST            CLIENT-ID
+billing-service-group orders.events   0          2               2               0               billing-consumer-f47e4ab68e13-a6018926-b8f8-4662-8853-688e6a1fa8d6 /172.20.0.6     billing-consumer-f47e4ab68e13
+billing-service-group orders.events   1          -               0               -               billing-consumer-f47e4ab68e13-a6018926-b8f8-4662-8853-688e6a1fa8d6 /172.20.0.6     billing-consumer-f47e4ab68e13
+billing-service-group orders.events   2          1               1               0               billing-consumer-f47e4ab68e13-a6018926-b8f8-4662-8853-688e6a1fa8d6 /172.20.0.6     billing-consumer-f47e4ab68e13
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group notification-service-group
+
+GROUP                      TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                             HOST            CLIENT-ID
+notification-service-group orders.events   0          2               2               0               notification-consumer-a761670a611f-1ad732d0-8ba2-4446-af89-25bf47c6b374 /172.20.0.5     notification-consumer-a761670a611f
+notification-service-group orders.events   1          -               0               -               notification-consumer-a761670a611f-1ad732d0-8ba2-4446-af89-25bf47c6b374 /172.20.0.5     notification-consumer-a761670a611f
+notification-service-group orders.events   2          1               1               0               notification-consumer-a761670a611f-1ad732d0-8ba2-4446-af89-25bf47c6b374 /172.20.0.5     notification-consumer-a761670a611f
+[lag por grupo | final] inventory-service-group=0  billing-service-group=0  notification-service-group=0
+
+[CAPTURA] Kafka UI > Consumers: inventory-service-group, billing-service-group y notification-service-group con Consumer Lag = 0
+
+ESTADO CP-05 : CUMPLE
+Detalle: Los 3 consumidores (3/3) recibieron el mismo evento eventId=8ad5e85b-c066-413f-83b1-6a72cc3138bf de ORD-8CC10BC2; lag 0 en los 3 grupos.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142229
+**********************

@@ -1,0 +1,70 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101140828
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-07 (RabbitMQ) - Responsive: la API responde sin esperar al consumidor
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:08:28 -05:00
+
+>> Se envian 5 pedidos seguidos con el worker activo (procesamiento simulado de 2 a 5 s por mensaje)
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente1","product":"Mouse","quantity":1}'
+    HTTP 202 en 34.5 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-0EDE363A","correlationId":"3f7f71f9-e171-4100-b697-666b5aadd632"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente2","product":"Mouse","quantity":2}'
+    HTTP 202 en 12.9 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-977AF170","correlationId":"30f1ff72-5fb1-47df-a0a7-c550727202e7"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente3","product":"Mouse","quantity":3}'
+    HTTP 202 en 13 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-0FB3C6CD","correlationId":"c43668ad-f6fb-4eee-b4e3-2452ea43fbd6"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente4","product":"Mouse","quantity":4}'
+    HTTP 202 en 13.5 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-53C5A4B6","correlationId":"a83b20bd-479f-41d3-a020-308a572a7b84"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Cliente5","product":"Mouse","quantity":5}'
+    HTTP 202 en 12.5 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-66023CFE","correlationId":"e60bcd38-7192-4262-a446-6db87ab7e4f2"}
+[cola pedidos | justo despues de las 5 respuestas] Ready=4 Unacked=1 Total=5 Consumidores=1
+
+>> Tiempos de procesamiento reportados por el worker
+PS> docker compose logs --since 2026-11-01T19:08:31Z notification-worker | Select-String 'duracionMs'
+notification-worker-1  | 2026-11-01T19:08:32.642Z [notification-worker cb6ba480199b] Simulando envio de notificacion... | orderId=ORD-0EDE363A cliente=Cliente1 duracionMs=2091
+notification-worker-1  | 2026-11-01T19:08:34.739Z [notification-worker cb6ba480199b] Simulando envio de notificacion... | orderId=ORD-977AF170 cliente=Cliente2 duracionMs=2243
+notification-worker-1  | 2026-11-01T19:08:36.990Z [notification-worker cb6ba480199b] Simulando envio de notificacion... | orderId=ORD-0FB3C6CD cliente=Cliente3 duracionMs=3730
+notification-worker-1  | 2026-11-01T19:08:40.725Z [notification-worker cb6ba480199b] Simulando envio de notificacion... | orderId=ORD-53C5A4B6 cliente=Cliente4 duracionMs=3072
+notification-worker-1  | 2026-11-01T19:08:43.804Z [notification-worker cb6ba480199b] Simulando envio de notificacion... | orderId=ORD-66023CFE cliente=Cliente5 duracionMs=4435
+
+>> Con el worker detenido la API responde igual
+PS> docker compose stop notification-worker
+ Container rabbitmq-notification-worker-1 Stopping
+ Container rabbitmq-notification-worker-1 Stopped
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"SinWorker1","product":"Mouse","quantity":1}'
+    HTTP 202 en 17.4 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-AEEC31B6","correlationId":"4fd2d48c-745b-4a89-9987-81ef6f2a847d"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"SinWorker2","product":"Mouse","quantity":1}'
+    HTTP 202 en 12.3 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-7D7CF305","correlationId":"84928dd4-7387-4fa6-b000-43306f3fac81"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"SinWorker3","product":"Mouse","quantity":1}'
+    HTTP 202 en 23.5 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-F715A0C9","correlationId":"1ff3eaf3-9785-42c6-b99f-90aa784b4fa3"}
+PS> docker compose start notification-worker
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-1 Starting
+ Container rabbitmq-notification-worker-1 Started
+
+Tiempo de respuesta HTTP: promedio=17,5 ms, maximo=34,5 ms
+Las 5 respuestas llegaron en 0,5 s; el worker tardo 17,5 s en vaciar la cola
+
+ESTADO CP-07 : CUMPLE
+Detalle: 8/8 respuestas 202; maximo 34.5 ms (< 2000 ms, minimo del procesamiento del worker). La API no espera al consumidor.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101140905
+**********************

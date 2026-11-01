@@ -1,0 +1,89 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142407
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-08 (Kafka) - Message-driven: no existe comunicacion directa entre servicios
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:24:07 -05:00
+
+>> 1) Los consumidores no publican puertos
+PS> docker compose ps --format table {{.Service}}\t{{.Ports}}
+SERVICE                 PORTS
+kafka                   0.0.0.0:29092->29092/tcp, [::]:29092->29092/tcp
+billing-consumer
+inventory-consumer
+notification-consumer
+kafka-ui                0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
+orders-api              0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+
+>> 2) Ningun consumidor escucha puertos TCP dentro de su contenedor
+PS> docker compose exec inventory-consumer netstat -tln
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 127.0.0.11:33171        0.0.0.0:*               LISTEN
+PS> docker compose exec billing-consumer netstat -tln
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 127.0.0.11:38255        0.0.0.0:*               LISTEN
+PS> docker compose exec notification-consumer netstat -tln
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 127.0.0.11:35563        0.0.0.0:*               LISTEN
+
+>> 3) Desde orders-api no es posible abrir una conexion a los consumidores
+PS> docker compose exec orders-api node -e "require('net').connect(3000,'inventory-consumer').on('connect',()=>{console.log('inventory-consumer CONECTADO');process.exit(0)}).on('error',e=>{console.log('inventory-consumer sin conexion directa: '+e.code);process.exit(0)})"
+inventory-consumer sin conexion directa: ECONNREFUSED
+PS> docker compose exec orders-api node -e "require('net').connect(3000,'billing-consumer').on('connect',()=>{console.log('billing-consumer CONECTADO');process.exit(0)}).on('error',e=>{console.log('billing-consumer sin conexion directa: '+e.code);process.exit(0)})"
+billing-consumer sin conexion directa: ECONNREFUSED
+PS> docker compose exec orders-api node -e "require('net').connect(3000,'notification-consumer').on('connect',()=>{console.log('notification-consumer CONECTADO');process.exit(0)}).on('error',e=>{console.log('notification-consumer sin conexion directa: '+e.code);process.exit(0)})"
+notification-consumer sin conexion directa: ECONNREFUSED
+
+>> 4) La API solo conoce al broker (variables de entorno) y su codigo no invoca consumidores
+PS> docker compose exec orders-api printenv KAFKA_BROKER KAFKA_TOPIC
+kafka:9092
+orders.events
+PS> Select-String -Path orders-api\index.js -Pattern 'inventory|billing|notification|http.request|fetch\(|axios'
+    (sin coincidencias)
+
+>> 5) Los consumidores se relacionan solo con el broker (consumer groups)
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group inventory-service-group
+
+GROUP                   TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                          HOST            CLIENT-ID
+inventory-service-group orders.events   0          3               3               0               inventory-consumer-9875165af12e-29a856a8-0a73-4c9e-a787-654b740b1956 /172.20.0.6     inventory-consumer-9875165af12e
+inventory-service-group orders.events   1          2               2               0               inventory-consumer-9875165af12e-29a856a8-0a73-4c9e-a787-654b740b1956 /172.20.0.6     inventory-consumer-9875165af12e
+inventory-service-group orders.events   2          7               7               0               inventory-consumer-9875165af12e-29a856a8-0a73-4c9e-a787-654b740b1956 /172.20.0.6     inventory-consumer-9875165af12e
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group billing-service-group
+
+GROUP                 TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                        HOST            CLIENT-ID
+billing-service-group orders.events   0          3               3               0               billing-consumer-f47e4ab68e13-1acbeae4-5dab-4924-a870-b40baba2202c /172.20.0.7     billing-consumer-f47e4ab68e13
+billing-service-group orders.events   1          2               2               0               billing-consumer-f47e4ab68e13-1acbeae4-5dab-4924-a870-b40baba2202c /172.20.0.7     billing-consumer-f47e4ab68e13
+billing-service-group orders.events   2          7               7               0               billing-consumer-f47e4ab68e13-1acbeae4-5dab-4924-a870-b40baba2202c /172.20.0.7     billing-consumer-f47e4ab68e13
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group notification-service-group
+
+GROUP                      TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                             HOST            CLIENT-ID
+notification-service-group orders.events   0          3               3               0               notification-consumer-a761670a611f-913b9d8b-4db4-4eae-a29b-ee1c149a6751 /172.20.0.5     notification-consumer-a761670a611f
+notification-service-group orders.events   1          2               2               0               notification-consumer-a761670a611f-913b9d8b-4db4-4eae-a29b-ee1c149a6751 /172.20.0.5     notification-consumer-a761670a611f
+notification-service-group orders.events   2          7               7               0               notification-consumer-a761670a611f-913b9d8b-4db4-4eae-a29b-ee1c149a6751 /172.20.0.5     notification-consumer-a761670a611f
+
+ESTADO CP-08 : CUMPLE
+Detalle: Ningun consumidor expone puertos ni acepta conexiones; orders-api solo conoce kafka:9092; la comunicacion pasa por el topico orders.events.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142426
+**********************

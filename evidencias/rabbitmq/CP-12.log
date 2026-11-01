@@ -1,0 +1,90 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101141111
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-12 (RabbitMQ) - Recuperacion tras reiniciar consumidor y broker
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:11:11 -05:00
+
+>> A) Caida del worker con un mensaje sin confirmar (Unacked)
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion1","product":"Disco SSD","quantity":1}'
+    HTTP 202 en 45.1 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-35928AFD","correlationId":"68ea4d4b-c587-4c12-9417-567f9f0be620"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion2","product":"Disco SSD","quantity":1}'
+    HTTP 202 en 30.9 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-F0533005","correlationId":"2873eeb6-e4c2-4cc7-9052-3b5aed21a74b"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Recuperacion3","product":"Disco SSD","quantity":1}'
+    HTTP 202 en 29.3 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-5A62DC90","correlationId":"631f0fe4-293e-4351-83ec-e7c016399c8f"}
+[cola pedidos | worker procesando] Ready=2 Unacked=1 Total=3 Consumidores=1
+PS> docker compose kill notification-worker
+ Container rabbitmq-notification-worker-1 Killing
+ Container rabbitmq-notification-worker-1 Killed
+[cola pedidos | worker eliminado con SIGKILL] Ready=2 Unacked=0 Total=2 Consumidores=0
+PS> docker compose start notification-worker
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-1 Starting
+ Container rabbitmq-notification-worker-1 Started
+[cola pedidos | worker reiniciado] Ready=0 Unacked=0 Total=0 Consumidores=1
+PS> docker compose logs --since 2026-11-01T19:11:21Z notification-worker | Select-String 'Mensaje recibido|confirmado'
+notification-worker-1  | 2026-11-01T19:11:24.167Z [notification-worker cb6ba480199b] Mensaje recibido | tipo=ProcessOrder orderId=ORD-F0533005 correlationId=2873eeb6-e4c2-4cc7-9052-3b5aed21a74b redelivered=true deliveryTag=1
+notification-worker-1  | 2026-11-01T19:11:28.319Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-F0533005 correlationId=2873eeb6-e4c2-4cc7-9052-3b5aed21a74b procesadosPorEsteWorker=1
+notification-worker-1  | 2026-11-01T19:11:28.322Z [notification-worker cb6ba480199b] Mensaje recibido | tipo=ProcessOrder orderId=ORD-5A62DC90 correlationId=631f0fe4-293e-4351-83ec-e7c016399c8f redelivered=false deliveryTag=2
+notification-worker-1  | 2026-11-01T19:11:32.876Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-5A62DC90 correlationId=631f0fe4-293e-4351-83ec-e7c016399c8f procesadosPorEsteWorker=2
+
+>> B) Reinicio del broker con mensajes pendientes (cola durable + mensajes persistentes)
+PS> docker compose stop notification-worker
+ Container rabbitmq-notification-worker-1 Stopping
+ Container rabbitmq-notification-worker-1 Stopped
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Broker1","product":"Memoria RAM","quantity":1}'
+    HTTP 202 en 9.2 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-A8DD1197","correlationId":"3992c9cd-e20f-4c50-937f-90693328ce0b"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Broker2","product":"Memoria RAM","quantity":1}'
+    HTTP 202 en 6.9 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-CE88282D","correlationId":"21d8eade-2154-4b13-b075-5111210db28c"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Broker3","product":"Memoria RAM","quantity":1}'
+    HTTP 202 en 6.7 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-46FC00C3","correlationId":"9a089a62-7f45-4e7d-a79f-89e577ccd96a"}
+[cola pedidos | antes de reiniciar rabbitmq] Ready=3 Unacked=0 Total=3 Consumidores=0
+PS> docker compose restart rabbitmq
+ Container rabbitmq Restarting
+ Container rabbitmq Started
+[cola pedidos | despues de reiniciar rabbitmq] Ready=3 Unacked=0 Total=3 Consumidores=0
+
+[CAPTURA] RabbitMQ (recargar la consola tras el reinicio): pedidos conserva Ready=3 despues de reiniciar el broker
+
+>> La API se reconecta sola al broker
+PS> docker compose logs --since 2026-11-01T19:11:40Z orders-api | Select-String 'Conectado|cerrada|no disponible'
+orders-api  | 2026-11-01T19:11:42.100Z [orders-api] Conexion con RabbitMQ cerrada; reintentando | enMs=3000
+orders-api  | 2026-11-01T19:11:45.120Z [orders-api] RabbitMQ no disponible (intento 1) | error=connect ECONNREFUSED 172.20.0.2:5672
+orders-api  | 2026-11-01T19:11:48.124Z [orders-api] RabbitMQ no disponible (intento 2) | error=connect ECONNREFUSED 172.20.0.2:5672
+orders-api  | 2026-11-01T19:11:51.130Z [orders-api] RabbitMQ no disponible (intento 3) | error=connect ECONNREFUSED 172.20.0.2:5672
+orders-api  | 2026-11-01T19:11:54.188Z [orders-api] Conectado a RabbitMQ | broker=rabbitmq:5672 cola=pedidos durable=true
+PS> docker compose start notification-worker
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-1 Starting
+ Container rabbitmq-notification-worker-1 Started
+[cola pedidos | final] Ready=0 Unacked=0 Total=0 Consumidores=1
+PS> docker compose logs --since 2026-11-01T19:12:03Z notification-worker | Select-String 'confirmado'
+notification-worker-1  | 2026-11-01T19:12:10.915Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-A8DD1197 correlationId=3992c9cd-e20f-4c50-937f-90693328ce0b procesadosPorEsteWorker=1
+notification-worker-1  | 2026-11-01T19:12:15.018Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-CE88282D correlationId=21d8eade-2154-4b13-b075-5111210db28c procesadosPorEsteWorker=2
+notification-worker-1  | 2026-11-01T19:12:19.568Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-46FC00C3 correlationId=9a089a62-7f45-4e7d-a79f-89e577ccd96a procesadosPorEsteWorker=3
+
+ESTADO CP-12 : CUMPLE
+Detalle: A) worker: Unacked 1->0, mensaje reentregado (redelivered=true), perdidos=0. B) broker: Ready 3 antes y 3 despues del reinicio, perdidos=0.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101141225
+**********************

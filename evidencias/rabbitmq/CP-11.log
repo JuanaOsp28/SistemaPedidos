@@ -1,0 +1,60 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101141024
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1
+Id. de proceso: 17876
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-11 (RabbitMQ) - Desacoplamiento temporal
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:10:24 -05:00
+PS> docker compose stop notification-worker
+ Container rabbitmq-notification-worker-1 Stopping
+ Container rabbitmq-notification-worker-1 Stopped
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Temporal1","product":"Libro de pruebas","quantity":1}'
+    HTTP 202 en 12.1 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-781A9612","correlationId":"c5f35024-66a6-43a0-ac81-29bc34712b74"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Temporal2","product":"Libro de pruebas","quantity":1}'
+    HTTP 202 en 8.6 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-5087833B","correlationId":"822a4929-a784-4cbd-8176-58451c66167d"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Temporal3","product":"Libro de pruebas","quantity":1}'
+    HTTP 202 en 12.2 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-B900FA84","correlationId":"3b2ab82f-8269-43a4-9e00-c38e3de3e8d0"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Temporal4","product":"Libro de pruebas","quantity":1}'
+    HTTP 202 en 7.8 ms -> {"status":"accepted","message":"Pedido recibido y enviado a RabbitMQ","orderId":"ORD-997F3495","correlationId":"65bf1c8b-c325-491f-bd9c-41e137b21f77"}
+[cola pedidos | consumidor apagado] Ready=4 Unacked=0 Total=4 Consumidores=0
+
+[CAPTURA] RabbitMQ > Queues > pedidos: Ready=4 acumulados con el consumidor apagado
+
+>> Se espera 10 s con el consumidor apagado: los mensajes permanecen en la cola
+[cola pedidos | 10 s despues] Ready=4 Unacked=0 Total=4 Consumidores=0
+
+>> Se inicia el consumidor
+PS> docker compose start notification-worker
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-1 Starting
+ Container rabbitmq-notification-worker-1 Started
+[cola pedidos | final] Ready=0 Unacked=0 Total=0 Consumidores=1
+PS> docker compose logs --since 2026-11-01T19:10:47Z notification-worker | Select-String 'confirmado \(ack\)'
+notification-worker-1  | 2026-11-01T19:10:53.252Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-781A9612 correlationId=c5f35024-66a6-43a0-ac81-29bc34712b74 procesadosPorEsteWorker=1
+notification-worker-1  | 2026-11-01T19:10:58.149Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-5087833B correlationId=822a4929-a784-4cbd-8176-58451c66167d procesadosPorEsteWorker=2
+notification-worker-1  | 2026-11-01T19:11:03.090Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-B900FA84 correlationId=3b2ab82f-8269-43a4-9e00-c38e3de3e8d0 procesadosPorEsteWorker=3
+notification-worker-1  | 2026-11-01T19:11:05.515Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-997F3495 correlationId=65bf1c8b-c325-491f-bd9c-41e137b21f77 procesadosPorEsteWorker=4
+
+ESTADO CP-11 : CUMPLE
+Detalle: 4 mensajes publicados con el consumidor apagado (Ready=4); al iniciarlo se procesaron 4/4: ORD-781A9612, ORD-5087833B, ORD-B900FA84, ORD-997F3495.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101141111
+**********************

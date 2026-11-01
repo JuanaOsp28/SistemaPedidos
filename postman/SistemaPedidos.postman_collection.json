@@ -1,0 +1,100 @@
+{
+  "info": {
+    "name": "SistemaPedidos - Pruebas de integracion",
+    "description": "POST /orders para las arquitecturas RabbitMQ y Kafka. Solo una arquitectura puede estar levantada a la vez (ambas usan el puerto 3000).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" }
+  ],
+  "item": [
+    {
+      "name": "RabbitMQ",
+      "item": [
+        {
+          "name": "CP-01 Crear pedido (valido)",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('HTTP 202 Accepted', () => pm.response.to.have.status(202));",
+              "const b = pm.response.json();",
+              "pm.test('status = accepted', () => pm.expect(b.status).to.eql('accepted'));",
+              "pm.test('mensaje de RabbitMQ', () => pm.expect(b.message).to.eql('Pedido recibido y enviado a RabbitMQ'));",
+              "pm.test('orderId generado', () => pm.expect(b.orderId).to.match(/^ORD-/));",
+              "pm.test('Responde en menos de 500 ms (no espera al worker)', () => pm.expect(pm.response.responseTime).to.be.below(500));"
+            ] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "POSTMAN-RMQ-{{$timestamp}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"customerName\": \"Pedro\",\n  \"product\": \"Libro de arquitectura\",\n  \"quantity\": 1\n}" },
+            "url": "{{baseUrl}}/orders"
+          }
+        },
+        {
+          "name": "CP-01 Crear pedido (invalido)",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('status = rejected', () => pm.expect(pm.response.json().status).to.eql('rejected'));"
+            ] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"customerName\": \"Pedro\",\n  \"quantity\": 0\n}" },
+            "url": "{{baseUrl}}/orders"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kafka",
+      "item": [
+        {
+          "name": "CP-01 Crear pedido (valido)",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('HTTP 202 Accepted', () => pm.response.to.have.status(202));",
+              "const b = pm.response.json();",
+              "pm.test('status = accepted', () => pm.expect(b.status).to.eql('accepted'));",
+              "pm.test('mensaje de Kafka', () => pm.expect(b.message).to.eql('Pedido recibido y evento OrderCreated publicado en Kafka'));",
+              "pm.test('orderId generado', () => pm.expect(b.orderId).to.match(/^ORD-/));",
+              "pm.test('Responde en menos de 500 ms (no espera a los consumidores)', () => pm.expect(pm.response.responseTime).to.be.below(500));"
+            ] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "POSTMAN-KAFKA-{{$timestamp}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"customerName\": \"Pedro\",\n  \"product\": \"Libro de arquitectura\",\n  \"quantity\": 1,\n  \"unitPrice\": 85000\n}" },
+            "url": "{{baseUrl}}/orders"
+          }
+        },
+        {
+          "name": "CP-01 Crear pedido (invalido)",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('status = rejected', () => pm.expect(pm.response.json().status).to.eql('rejected'));"
+            ] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"customerName\": \"Pedro\",\n  \"product\": \"Libro\",\n  \"quantity\": -2\n}" },
+            "url": "{{baseUrl}}/orders"
+          }
+        }
+      ]
+    }
+  ]
+}

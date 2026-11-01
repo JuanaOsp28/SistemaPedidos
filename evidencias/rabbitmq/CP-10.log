@@ -1,0 +1,85 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101141541
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\rabbitmq.ps1 -Casos CP-10
+Id. de proceso: 21016
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-10 (RabbitMQ) - Elastic: distribucion de carga con multiples consumidores
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:15:41 -05:00
+
+>> Escalado a 2 workers
+PS> docker compose up -d --scale notification-worker=2
+ Container rabbitmq Running
+ Container rabbitmq-notification-worker-1 Running
+ Container orders-api Running
+ Container rabbitmq-notification-worker-2 Creating
+ Container rabbitmq-notification-worker-2 Created
+ Container rabbitmq Waiting
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-2 Starting
+ Container rabbitmq Healthy
+ Container rabbitmq-notification-worker-2 Started
+PS> docker compose ps notification-worker
+NAME                             IMAGE                          COMMAND                  SERVICE               CREATED         STATUS         PORTS
+rabbitmq-notification-worker-1   rabbitmq-notification-worker   "docker-entrypoint.s…"   notification-worker   9 minutes ago   Up 3 minutes
+rabbitmq-notification-worker-2   rabbitmq-notification-worker   "docker-entrypoint.s…"   notification-worker   7 seconds ago   Up 5 seconds
+[cola pedidos | con 2 consumidores] Ready=0 Unacked=0 Total=0 Consumidores=2
+10 pedidos enviados: 10 respuestas 202
+[cola pedidos | inmediatamente despues de publicar] Ready=6 Unacked=2 Total=8 Consumidores=2
+
+[CAPTURA] RAPIDO (los workers siguen procesando): RabbitMQ > Queues > pedidos con Consumers=2 y Unacked=2 (un mensaje en curso por worker)
+
+>> Mensajes confirmados por cada worker
+notification-worker-2  | 2026-11-01T19:15:54.123Z [notification-worker 30eda17609d6] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-153003EB correlationId=19c2246d-2e89-45fb-94d6-5adae2db7256 procesadosPorEsteWorker=1
+notification-worker-2  | 2026-11-01T19:15:57.382Z [notification-worker 30eda17609d6] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-9036F845 correlationId=33759ce0-664e-4622-9f57-5c66521caf1a procesadosPorEsteWorker=2
+notification-worker-2  | 2026-11-01T19:15:59.696Z [notification-worker 30eda17609d6] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-77F34544 correlationId=c3965844-a9bb-45d9-925a-5e4ca82aed59 procesadosPorEsteWorker=3
+notification-worker-2  | 2026-11-01T19:16:03.891Z [notification-worker 30eda17609d6] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-6AE7DB15 correlationId=6c4316ea-c5d9-4941-89b6-78b3a2c41e8b procesadosPorEsteWorker=4
+notification-worker-2  | 2026-11-01T19:16:06.524Z [notification-worker 30eda17609d6] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-901250CA correlationId=8efcf9a3-ad50-4147-9875-fa3b3f18173a procesadosPorEsteWorker=5
+notification-worker-2  | 2026-11-01T19:16:08.716Z [notification-worker 30eda17609d6] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-4CAB22F9 correlationId=345c9e8f-baeb-4cfe-a469-a44cc3dc64fa procesadosPorEsteWorker=6
+notification-worker-1  | 2026-11-01T19:15:54.252Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-05E53367 correlationId=41846217-c7ad-4749-8be2-8c05a41ea683 procesadosPorEsteWorker=5
+notification-worker-1  | 2026-11-01T19:15:59.170Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-42CE91B3 correlationId=5e6bc6a0-28a0-4442-a1f1-5f71d464b992 procesadosPorEsteWorker=6
+notification-worker-1  | 2026-11-01T19:16:04.040Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-770D5ED4 correlationId=e74d0b96-e1c7-4f9e-bb4f-aca936814b01 procesadosPorEsteWorker=7
+notification-worker-1  | 2026-11-01T19:16:07.454Z [notification-worker cb6ba480199b] Notificacion enviada; mensaje confirmado (ack) | orderId=ORD-4680463A correlationId=c2079fe5-425c-46f9-a09c-c3894e384f2d procesadosPorEsteWorker=8
+
+
+Name                  Count
+----                  -----
+notification-worker-2     6
+notification-worker-1     4
+
+>> Se vuelve a 1 worker
+PS> docker compose up -d --scale notification-worker=1
+ Container rabbitmq Running
+ Container rabbitmq-notification-worker-1 Running
+ Container rabbitmq-notification-worker-2 Stopping
+ Container orders-api Running
+ Container rabbitmq-notification-worker-2 Stopped
+ Container rabbitmq-notification-worker-2 Removing
+ Container rabbitmq-notification-worker-2 Removed
+ Container rabbitmq Waiting
+ Container rabbitmq Waiting
+ Container rabbitmq Healthy
+ Container rabbitmq Healthy
+
+ESTADO CP-10 : CUMPLE
+Detalle: Reparto: notification-worker-2=6, notification-worker-1=4
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101141611
+**********************

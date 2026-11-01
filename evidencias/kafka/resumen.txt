@@ -1,0 +1,36 @@
+﻿Ejecucion 2026-10-31 13:11:41 - casos: ENTORNO, CP-01, CP-04, CP-05, CP-06, CP-07, CP-08, CP-09, CP-10, CP-11, CP-12
+
+Caso    Estado Detalle                                                                                                                                                                                  
+----    ------ -------                                                                                                                                                                                  
+ENTORNO CUMPLE Kafka activo, Kafka UI HTTP 200, topico orders.events con 3 particiones y 3 consumer groups.                                                                                             
+CP-01   CUMPLE Valido: HTTP 202 status=accepted orderId=ORD-89D019C8 (43.7 ms). Invalido: HTTP 400. Mal formado: HTTP 400.                                                                              
+CP-04   CUMPLE Evento OrderCreated de ORD-A62E7354 almacenado en orders.events (eventos 1 -> 2); campos obligatorios presentes; total=240000.                                                           
+CP-05   CUMPLE Los 3 consumidores (3/3) recibieron el mismo evento eventId=b218c5fc-4a2f-48f7-ab3d-29271401c387 de ORD-768B5E3E; lag 0 en los 3 grupos.                                                 
+CP-06   CUMPLE orderId=ORD-9D88F3C3 correlationId=QA-KAFKA-CP06-130532 seguido en orders-api, en el log de Kafka (header y payload) y en los 3 consumidores (3/3).                                      
+CP-07   CUMPLE 8/8 respuestas 202; maximo 9.3 ms (< 800 ms, el procesamiento mas corto). La API no espera a los consumidores.                                                                           
+CP-08   CUMPLE Ningun consumidor expone puertos ni acepta conexiones; orders-api solo conoce kafka:9092; la comunicacion pasa por el topico orders.events.                                              
+CP-09   CUMPLE Con billing caido: API 3/3 aceptados, inventory+notification procesaron 6/6, lag de billing=3; al volver billing genero 3 facturas.                                                      
+CP-10   CUMPLE Reparto por particiones: inventory-consumer-2=6, inventory-consumer-1=6 (total 12/12, sin duplicados entre instancias)                                                                   
+CP-11   CUMPLE A) lag de notification con el consumidor apagado=3; al iniciarlo proceso 3/3. B) audit-consumer, creado despues, leyo 30/30 eventos desde el offset 0.                                   
+CP-12   CUMPLE A) lag tras matar inventory=5; al reiniciar se procesaron todos (perdidos=0, reprocesados=1). B) broker: eventos antes=36 despues=37; pedido durante el reinicio HTTP 202 en 8274.4 ms...
+
+
+
+Ejecucion 2026-11-01 14:29:14 - casos: ENTORNO, CP-01, CP-04, CP-05, CP-06, CP-07, CP-08, CP-09, CP-10, CP-11, CP-12
+
+Caso    Estado Detalle                                                                                                                                                                                  
+----    ------ -------                                                                                                                                                                                  
+ENTORNO CUMPLE Kafka activo, Kafka UI HTTP 200, topico orders.events con 3 particiones y 3 consumer groups.                                                                                             
+CP-01   CUMPLE Valido: HTTP 202 status=accepted orderId=ORD-E414562D (264.9 ms). Invalido: HTTP 400. Mal formado: HTTP 400.                                                                             
+CP-04   CUMPLE Evento OrderCreated de ORD-574AD8C6 almacenado en orders.events (eventos 1 -> 2); campos obligatorios presentes; total=240000.                                                           
+CP-05   CUMPLE Los 3 consumidores (3/3) recibieron el mismo evento eventId=8ad5e85b-c066-413f-83b1-6a72cc3138bf de ORD-8CC10BC2; lag 0 en los 3 grupos.                                                 
+CP-06   CUMPLE orderId=ORD-80672E7B correlationId=QA-KAFKA-CP06-142247 seguido en orders-api, en el log de Kafka (header y payload) y en los 3 consumidores (3/3).                                      
+CP-07   CUMPLE 8/8 respuestas 202; maximo 43 ms (< 800 ms, el procesamiento mas corto). La API no espera a los consumidores.                                                                            
+CP-08   CUMPLE Ningun consumidor expone puertos ni acepta conexiones; orders-api solo conoce kafka:9092; la comunicacion pasa por el topico orders.events.                                              
+CP-09   CUMPLE Con billing caido: API 3/3 aceptados, inventory+notification procesaron 6/6, lag de billing=3; al volver billing genero 3 facturas.                                                      
+CP-10   CUMPLE Reparto por particiones: inventory-consumer-1=5, inventory-consumer-2=7 (total 12/12, sin duplicados entre instancias)                                                                   
+CP-11   CUMPLE A) lag de notification con el consumidor apagado=3; al iniciarlo proceso 3/3. B) audit-consumer, creado despues, leyo 30/30 eventos desde el offset 0.                                   
+CP-12   CUMPLE A) lag tras matar inventory=4; al reiniciar se procesaron todos (perdidos=0, reprocesados=0). B) broker: eventos antes=36 despues=37; pedido durante el reinicio HTTP 202 en 5321.1 ms...
+
+
+

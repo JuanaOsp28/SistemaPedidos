@@ -1,0 +1,173 @@
+﻿**********************
+Inicio de la transcripción de Windows PowerShell
+Hora de inicio: 20261101142621
+Nombre de usuario: DESKTOP-0PVJU8U\Juana
+Usuario RunAs: DESKTOP-0PVJU8U\Juana
+Nombre de la configuración: 
+Máquina: DESKTOP-0PVJU8U (Microsoft Windows NT 10.0.26200.0)
+Aplicación host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File pruebas\kafka.ps1
+Id. de proceso: 18320
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==========================================================================================
+CP-11 (Kafka) - Desacoplamiento temporal y consumidor posterior
+==========================================================================================
+Fecha/hora de ejecucion: 2026-11-01 14:26:21 -05:00
+
+>> A) Consumidor apagado mientras se publican eventos
+PS> docker compose stop notification-consumer
+ Container kafka-notification-consumer-1 Stopping
+ Container kafka-notification-consumer-1 Stopped
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Temporal1","product":"Libro de pruebas","quantity":1,"unitPrice":60000}'
+    HTTP 202 en 17.5 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-701D0D28","eventId":"96fc9b97-c3b0-41ec-972c-dcb3f14a788a","correlationId":"f67f8110-17d1-404d-8814-f39ded972ab7"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Temporal2","product":"Libro de pruebas","quantity":1,"unitPrice":60000}'
+    HTTP 202 en 6.7 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-1A7C2C2B","eventId":"c01b4453-7ba4-4af1-af83-00aee4e183b1","correlationId":"bf0d5988-7143-4bcb-b12d-ee2a2354c6d5"}
+PS> curl.exe -X POST http://localhost:3000/orders -H 'Content-Type: application/json' -d '{"customerName":"Temporal3","product":"Libro de pruebas","quantity":1,"unitPrice":60000}'
+    HTTP 202 en 7.3 ms -> {"status":"accepted","message":"Pedido recibido y evento OrderCreated publicado en Kafka","orderId":"ORD-DA5850E9","eventId":"9f5739d4-9af6-4842-ba81-fe2d0f6302d0","correlationId":"5e94ac53-c73d-4feb-9aa8-0c513614769d"}
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group notification-service-group
+System.Management.Automation.RemoteException
+Consumer group 'notification-service-group' has no active members.
+
+GROUP                      TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+notification-service-group orders.events   0          6               6               0               -               -               -
+notification-service-group orders.events   1          7               8               1               -               -               -
+notification-service-group orders.events   2          14              16              2               -               -               -
+
+[CAPTURA] Kafka UI > Consumers > notification-service-group: lag=3 con el consumidor apagado
+PS> docker compose start notification-consumer
+ Container kafka Waiting
+ Container kafka Healthy
+ Container kafka-init Starting
+ Container kafka-init Started
+ Container kafka-init Waiting
+ Container kafka-init Exited
+ Container kafka-notification-consumer-1 Starting
+ Container kafka-notification-consumer-1 Started
+PS> docker compose logs --since 2026-11-01T19:26:53Z notification-consumer | Select-String 'Evento recibido'
+notification-consumer-1  | 2026-11-01T19:27:02.090Z [notification-consumer a761670a611f] Evento recibido | eventType=OrderCreated eventId=96fc9b97-c3b0-41ec-972c-dcb3f14a788a orderId=ORD-701D0D28 correlationId=f67f8110-17d1-404d-8814-f39ded972ab7 topic=orders.events partition=2 offset=14
+notification-consumer-1  | 2026-11-01T19:27:02.895Z [notification-consumer a761670a611f] Evento recibido | eventType=OrderCreated eventId=c01b4453-7ba4-4af1-af83-00aee4e183b1 orderId=ORD-1A7C2C2B correlationId=bf0d5988-7143-4bcb-b12d-ee2a2354c6d5 topic=orders.events partition=2 offset=15
+notification-consumer-1  | 2026-11-01T19:27:03.720Z [notification-consumer a761670a611f] Evento recibido | eventType=OrderCreated eventId=9f5739d4-9af6-4842-ba81-fe2d0f6302d0 orderId=ORD-DA5850E9 correlationId=5e94ac53-c73d-4feb-9aa8-0c513614769d topic=orders.events partition=1 offset=7
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group notification-service-group
+
+GROUP                      TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                             HOST            CLIENT-ID
+notification-service-group orders.events   0          6               6               0               notification-consumer-a761670a611f-b79feab8-f690-4079-b842-8d3c4485b14f /172.20.0.5     notification-consumer-a761670a611f
+notification-service-group orders.events   1          8               8               0               notification-consumer-a761670a611f-b79feab8-f690-4079-b842-8d3c4485b14f /172.20.0.5     notification-consumer-a761670a611f
+notification-service-group orders.events   2          16              16              0               notification-consumer-a761670a611f-b79feab8-f690-4079-b842-8d3c4485b14f /172.20.0.5     notification-consumer-a761670a611f
+
+>> B) Consumidor posterior: audit-consumer se crea DESPUES de publicar los eventos
+PS> docker exec kafka kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic orders.events
+orders.events:0:6
+orders.events:1:8
+orders.events:2:16
+Eventos existentes en el log antes de crear audit-consumer: 30
+PS> docker compose --profile late up -d audit-consumer
+ Image kafka-audit-consumer Building
+#1 [internal] load local bake definitions
+#1 reading from stdin 657B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 257B 0.0s done
+#2 DONE 0.1s
+
+#3 [internal] load metadata for docker.io/library/node:20-alpine
+#3 DONE 0.7s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 3.15kB done
+#5 DONE 0.0s
+
+#6 [1/5] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+#6 resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 0.0s done
+#6 DONE 0.0s
+
+#7 [2/5] WORKDIR /app
+#7 CACHED
+
+#8 [3/5] COPY package.json ./
+#8 DONE 0.0s
+
+#9 [4/5] RUN npm install --omit=dev --no-audit --no-fund
+#9 1.867
+#9 1.867 added 1 package in 1s
+#9 1.870 npm notice
+#9 1.870 npm notice New major version of npm available! 10.8.2 -> 12.2.1
+#9 1.870 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+#9 1.870 npm notice To update run: npm install -g npm@12.2.1
+#9 1.870 npm notice
+#9 DONE 2.0s
+
+#10 [5/5] COPY index.js ./
+#10 DONE 0.1s
+
+#11 exporting to image
+#11 exporting layers
+#11 exporting layers 0.3s done
+#11 exporting manifest sha256:337873fedcdcbed69914854ed7906e54446d38a877851f2123978a907e14e365 0.0s done
+#11 exporting config sha256:2e57703a856dba4ea76b22c77828474706533b6322b7ce7bed0705863ec946e0 0.0s done
+#11 exporting attestation manifest sha256:897176abe2bba08d76d7cbabcdc525766ca23e04bd61854dafd72e4daf06f5e9 0.0s done
+#11 exporting manifest list sha256:794b7ec551b7672b1fcc3be21f5da0db26b7cb922e658d2a263621fdd29a38a2
+#11 exporting manifest list sha256:794b7ec551b7672b1fcc3be21f5da0db26b7cb922e658d2a263621fdd29a38a2 0.0s done
+#11 naming to docker.io/library/kafka-audit-consumer:latest done
+#11 unpacking to docker.io/library/kafka-audit-consumer:latest
+#11 unpacking to docker.io/library/kafka-audit-consumer:latest 0.2s done
+#11 DONE 0.7s
+
+#12 resolving provenance for metadata file
+#12 DONE 0.0s
+ Image kafka-audit-consumer Built
+ Container kafka Running
+ Container kafka-audit-consumer-1 Creating
+ Container kafka-audit-consumer-1 Created
+ Container kafka Waiting
+ Container kafka Healthy
+ Container kafka-init Starting
+ Container kafka-init Started
+ Container kafka-init Waiting
+ Container kafka-init Exited
+ Container kafka-audit-consumer-1 Starting
+ Container kafka-audit-consumer-1 Started
+PS> docker logs kafka-audit-consumer-1 (primeras lineas)
+2026-11-01T19:27:28.329Z [audit-consumer 01d9bdf296ba] Suscrito al topico (lectura desde el inicio del log) | topico=orders.events grupo=audit-service-group
+2026-11-01T19:27:31.365Z [audit-consumer 01d9bdf296ba] Unido al consumer group | grupo=audit-service-group particionesAsignadas=0,1,2
+2026-11-01T19:27:31.433Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-71822978 correlationId=eedc71c3-4bd3-423b-a326-0cf3be66ea54 topic=orders.events partition=1 offset=0
+2026-11-01T19:27:31.540Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-95F456D4 correlationId=acffac5f-bbd2-456a-8221-f9c8333271c4 topic=orders.events partition=1 offset=1
+2026-11-01T19:27:31.641Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-7399E293 correlationId=168a877e-2b66-4dc7-b811-26b2ccd8833f topic=orders.events partition=1 offset=2
+2026-11-01T19:27:31.742Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-ACE13C8C correlationId=b3e02b54-d01e-4834-ba48-a889fb6f8f1f topic=orders.events partition=1 offset=3
+2026-11-01T19:27:31.843Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-02C82DA7 correlationId=3ac8538d-cbe9-46a1-8ab9-f59e0d5e7b67 topic=orders.events partition=1 offset=4
+2026-11-01T19:27:31.944Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-0A438198 correlationId=aebe3cd9-3afc-4e7b-a296-8f648ec71734 topic=orders.events partition=1 offset=5
+2026-11-01T19:27:32.045Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-D2EB0CFE correlationId=e1ebe8fd-a5fb-4cb6-8114-fc2067528780 topic=orders.events partition=1 offset=6
+2026-11-01T19:27:32.146Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-DA5850E9 correlationId=5e94ac53-c73d-4feb-9aa8-0c513614769d topic=orders.events partition=1 offset=7
+2026-11-01T19:27:32.257Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-E414562D correlationId=e6788e5c-dc96-468d-9824-b1169a148b63 topic=orders.events partition=0 offset=0
+2026-11-01T19:27:32.358Z [audit-consumer 01d9bdf296ba] Evento leido del log | eventType=OrderCreated orderId=ORD-574AD8C6 correlationId=3cecb97c-a1f5-45e7-be43-ef884399c12c topic=orders.events partition=0 offset=1
+    ... (30 eventos leidos en total)
+PS> docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group audit-service-group
+
+GROUP               TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                      HOST            CLIENT-ID
+audit-service-group orders.events   0          6               6               0               audit-consumer-01d9bdf296ba-c8aebb31-e1d0-4754-a76c-d7ea780a353e /172.20.0.8     audit-consumer-01d9bdf296ba
+audit-service-group orders.events   1          8               8               0               audit-consumer-01d9bdf296ba-c8aebb31-e1d0-4754-a76c-d7ea780a353e /172.20.0.8     audit-consumer-01d9bdf296ba
+audit-service-group orders.events   2          16              16              0               audit-consumer-01d9bdf296ba-c8aebb31-e1d0-4754-a76c-d7ea780a353e /172.20.0.8     audit-consumer-01d9bdf296ba
+
+[CAPTURA] Kafka UI > Consumers: aparece audit-service-group, nuevo, con lag=0 tras leer todo el log
+PS> docker compose --profile late stop audit-consumer
+ Container kafka-audit-consumer-1 Stopping
+ Container kafka-audit-consumer-1 Stopped
+
+ESTADO CP-11 : CUMPLE
+Detalle: A) lag de notification con el consumidor apagado=3; al iniciarlo proceso 3/3. B) audit-consumer, creado despues, leyo 30/30 eventos desde el offset 0.
+**********************
+Fin de la transcripción de Windows PowerShell
+Hora de finalización: 20261101142747
+**********************
